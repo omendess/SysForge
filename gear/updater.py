@@ -123,7 +123,7 @@ ren "{exe_name}" "{exe_name}.old" >nul 2>&1
 xcopy /y /e /h /c /i "update_temp\*" . >nul
 rmdir /s /q "update_temp" >nul 2>&1
 del /f /q "update.zip" >nul 2>&1
-start "" "{exe_name}"
+explorer.exe "{exe_name}"
 del "%~f0"
 """
                 bat_path = os.path.join(exe_dir, "update_runner.bat")
