@@ -12,7 +12,7 @@ CURRENT_VERSION = "2.0.0"
 # O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/omendess/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}
 UPDATE_URL = "https://raw.githubusercontent.com/omendess/SysForge/main/version.json"
 
-def check_for_updates(root_window):
+def check_for_updates(root_window, manual=False):
     """Verifica se há atualizações no GitHub e notifica o usuário."""
     def _check():
         try:
@@ -25,11 +25,23 @@ def check_for_updates(root_window):
                 changelog = data.get("changelog", "Melhorias de estabilidade e segurança.")
                 
                 if latest_version > CURRENT_VERSION:
-                    root_window.after(2000, lambda: _show_update_dialog(root_window, latest_version, download_url, changelog))
+                    root_window.after(0, lambda: _show_update_dialog(root_window, latest_version, download_url, changelog))
+                elif manual:
+                    root_window.after(0, lambda: _show_no_update_dialog(root_window))
         except Exception as e:
             print("Erro ao buscar atualizações (O GitHub pode estar inacessível ou URL não configurada).", e)
+            if manual:
+                root_window.after(0, lambda: _show_error_dialog(root_window))
 
     threading.Thread(target=_check, daemon=True).start()
+
+def _show_no_update_dialog(root_window):
+    from tkinter import messagebox
+    messagebox.showinfo("Atualização", f"O SysForge já está na última versão ({CURRENT_VERSION}).")
+
+def _show_error_dialog(root_window):
+    from tkinter import messagebox
+    messagebox.showerror("Erro", "Não foi possível verificar atualizações. Verifique sua conexão com a internet ou configuração do GitHub.")
 
 def _show_update_dialog(root_window, new_version, download_url, changelog):
     import customtkinter as ctk
@@ -62,10 +74,36 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
     ctk.CTkButton(btn_frame, text="Lembrar Depois", fg_color="#334155", hover_color="#1E293B", command=dialog.destroy).pack(side="right", expand=True, padx=5)
 
 def _start_update_process(download_url, root_window):
-    # Cria o script temporário que fará a extração em background e o substitui
-    updater_script = os.path.join(os.getcwd(), "update_runner.py")
+    import sys, os, subprocess
     
-    script_content = f'''import urllib.request
+    is_compiled = getattr(sys, 'frozen', False)
+    
+    if is_compiled:
+        exe_name = os.path.basename(sys.executable)
+        ps_script = f"""
+        Write-Host 'Aguardando o SysForge fechar...'
+        Start-Sleep -Seconds 3
+        Write-Host 'Baixando atualizacao do SysForge...'
+        Invoke-WebRequest -Uri '{download_url}' -OutFile 'update.zip'
+        Write-Host 'Extraindo e substituindo os arquivos...'
+        Expand-Archive -Path 'update.zip' -DestinationPath 'update_temp' -Force
+        $src = Get-ChildItem -Path 'update_temp' | Select-Object -First 1
+        Copy-Item -Path "$($src.FullName)\*" -Destination . -Recurse -Force
+        Remove-Item -Path 'update_temp' -Recurse -Force
+        Remove-Item -Path 'update.zip' -Force
+        Write-Host 'Atualizacao concluida com sucesso! Reiniciando...'
+        Start-Process -FilePath '{exe_name}'
+        """
+        # Salva o script em um arquivo ps1 temporário
+        script_path = os.path.join(os.getcwd(), "update_runner.ps1")
+        with open(script_path, "w") as f:
+            f.write(ps_script + f"\nRemove-Item -Path '{script_path}' -Force")
+            
+        subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update_runner.ps1"], creationflags=subprocess.CREATE_NEW_CONSOLE)
+    else:
+        # Modo Script Python (Dev)
+        updater_script = os.path.join(os.getcwd(), "update_runner.py")
+        script_content = f'''import urllib.request
 import zipfile
 import os
 import time
@@ -84,7 +122,6 @@ try:
     print("Extraindo e substituindo os arquivos...")
     with zipfile.ZipFile("update.zip", 'r') as zip_ref:
         for member in zip_ref.namelist():
-            # Ignora a pasta raiz gerada pelo ZIP do GitHub (ex: SysForge-main/)
             parts = member.split('/')
             if len(parts) > 1:
                 target_path = os.path.join(os.getcwd(), *parts[1:])
@@ -101,18 +138,13 @@ except Exception as e:
     print(f"Ocorreu um erro durante a atualização: {{e}}")
     input("Pressione Enter para sair...")
 
-# Reinicia a versão nova do SysForge
 subprocess.Popen([sys.executable, "main.py"], creationflags=0x08000000)
-
-# Deleta esse próprio arquivo update_runner.py para manter a pasta limpa
 try: os.remove(__file__)
 except: pass
 '''
-    with open(updater_script, "w", encoding="utf-8") as f:
-        f.write(script_content)
-        
-    # Inicia o updater como processo independente (abrindo console para ver progresso)
-    subprocess.Popen([sys.executable, "update_runner.py"], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        with open(updater_script, "w", encoding="utf-8") as f:
+            f.write(script_content)
+        subprocess.Popen([sys.executable, "update_runner.py"], creationflags=subprocess.CREATE_NEW_CONSOLE)
     
     # Encerra completamente a UI
     root_window.quit()

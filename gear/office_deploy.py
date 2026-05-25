@@ -10,10 +10,8 @@ def obter_caminho_base():
     Funciona tanto ao rodar via script (.py) quanto via executável (PyInstaller).
     """
     if getattr(sys, 'frozen', False):
-        # Se rodando via PyInstaller, o executável real está em sys.executable
-        # sys._MEIPASS é a pasta temporária. Queremos o diretório onde o .exe está
-        # para encontrar a pasta OfficeInstall que está ao lado dele.
-        return os.path.dirname(sys.executable)
+        # Quando compilado com PyInstaller --add-data, os arquivos ficam na pasta temporária _MEIPASS
+        return sys._MEIPASS
     else:
         # Se rodando via script .py, usa o caminho deste arquivo subindo até a raiz SysForge
         return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -30,24 +28,33 @@ def install_and_activate_office(status_callback=None):
             status_callback("Instalando Office LTSC silenciosamente...")
         try:
             # Executa a instalação a partir do diretório OfficeInstall
-            subprocess.run([setup_exe, "/configure", config_xml], cwd=office_dir, creationflags=CREATE_NO_WINDOW, check=True)
-        except subprocess.CalledProcessError:
+            # Passando stdout/stderr para DEVNULL para evitar crash em modo windowed do PyInstaller
+            subprocess.run([setup_exe, "/configure", config_xml], cwd=office_dir, creationflags=CREATE_NO_WINDOW, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as e:
             if status_callback:
-                status_callback("Erro na instalação do Office.")
+                status_callback(f"Erro na instalação do Office (Código {e.returncode}).")
+            return
+        except Exception as e:
+            if status_callback:
+                status_callback(f"Falha ao iniciar o Office: {str(e)}")
             return
     else:
         if status_callback:
-            status_callback("Arquivos de instalação do Office não encontrados. Pulando...")
+            status_callback(f"Falta setup.exe em: {setup_exe}")
         return
         
     # 2. Activate
     if status_callback:
         status_callback("Ativando Office LTSC (MAS)...")
     try:
-        cmd = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://get.activated.win | iex"]
-        subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, check=True)
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = 0 # SW_HIDE
+        
+        cmd = ["powershell.exe", "-WindowStyle", "Hidden", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "& ([ScriptBlock]::Create((irm https://get.activated.win))) /Ohook /S"]
+        subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, startupinfo=startupinfo, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if status_callback:
             status_callback("Office instalado e ativado com sucesso.")
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
         if status_callback:
-            status_callback("Erro ao ativar o Office.")
+            status_callback(f"Erro ao ativar o Office (Código {e.returncode}).")

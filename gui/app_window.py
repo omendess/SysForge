@@ -36,6 +36,19 @@ class AppWindow(ctk.CTk):
         self.title("SysForge 2.0 — Motor de Implantação")
         self.geometry("1120x760")
         self.minsize(860, 620)
+        
+        try:
+            import sys
+            import os
+            base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+            icon_path = os.path.join(base_path, "icon.ico")
+            # Caso _MEIPASS não resolva, tenta na raiz do projeto (cwd)
+            if not os.path.exists(icon_path):
+                icon_path = "icon.ico"
+            self.iconbitmap(icon_path)
+        except Exception:
+            pass
+            
         self.configure(fg_color=BG_MAIN)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
@@ -59,7 +72,7 @@ class AppWindow(ctk.CTk):
         sep.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
 
         self.nav_btns = {}
-        items = [("📊  Dashboard","dashboard",3),("📦  Softwares","softwares",4),("⚙️  Tweaks","tweaks",5),("🗑️  App Manager","app_manager",6),("🚀  Startup","startup",7),("📋  Logs","logs",8)]
+        items = [("📊  Dashboard","dashboard",3),("📦  Softwares","softwares",4),("⚙️  Tweaks","tweaks",5),("🗑️  App Manager","app_manager",6),("🚀  Startup","startup",7),("📋  Logs","logs",8),("ℹ️  Info", "info", 9)]
         for text, key, row in items:
             b = ctk.CTkButton(sb, text=text, anchor="w", corner_radius=10, height=42, fg_color="transparent", text_color=TXT_DIM, hover_color="#334155", font=ctk.CTkFont(size=14, weight="bold"), command=lambda k=key: self.select_view(k))
             b.grid(row=row, column=0, padx=14, pady=5, sticky="ew")
@@ -73,7 +86,7 @@ class AppWindow(ctk.CTk):
     # ─── Views Container ────────────────────────────────────
     def _build_views(self):
         self.views = {}
-        for key, builder in [("dashboard",self._build_dashboard),("softwares",self._build_softwares),("tweaks",self._build_tweaks),("app_manager",self._build_app_manager),("startup",self._build_startup),("logs",self._build_logs)]:
+        for key, builder in [("dashboard",self._build_dashboard),("softwares",self._build_softwares),("tweaks",self._build_tweaks),("app_manager",self._build_app_manager),("startup",self._build_startup),("logs",self._build_logs),("info",self._build_info)]:
             f = ctk.CTkFrame(self, corner_radius=0, fg_color=BG_MAIN)
             self.views[key] = f
             builder(f)
