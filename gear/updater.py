@@ -102,14 +102,20 @@ def _start_update_process(download_url, root_window):
         }}
         Get-ChildItem -Path $srcDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
         
+        # Renomeia o .exe antigo para burlar o lock do Windows
+        if (Test-Path '{exe_name}') {{
+            Remove-Item -Path '{exe_name}.old' -Force -ErrorAction SilentlyContinue
+            Rename-Item -Path '{exe_name}' -NewName '{exe_name}.old' -Force -ErrorAction SilentlyContinue
+        }}
+        
         $copySuccess = $false
         $copyRetries = 0
-        while (-not $copySuccess -and $copyRetries -lt 20) {{
+        while (-not $copySuccess -and $copyRetries -lt 15) {{
             try {{
                 Copy-Item -Path "$srcDir\*" -Destination . -Recurse -Force -ErrorAction Stop
                 $copySuccess = $true
             }} catch {{
-                Write-Host "Arquivo em uso. Tentando novamente..."
+                Write-Host "Copiando..."
                 Start-Sleep -Seconds 2
                 $copyRetries++
             }}
@@ -123,6 +129,8 @@ def _start_update_process(download_url, root_window):
             Start-Process -FilePath '{exe_name}'
         }} else {{
             Write-Host 'Falha ao atualizar. O executavel esta bloqueado.'
+            # Restaura o antigo se falhar
+            Rename-Item -Path '{exe_name}.old' -NewName '{exe_name}' -Force -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 10
         }}
         """

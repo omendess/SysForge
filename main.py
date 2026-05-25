@@ -1,7 +1,15 @@
 import sys
-import ctypes
 import os
+import ctypes
 
+try:
+    if getattr(sys, 'frozen', False):
+        exe_path = sys.executable
+        old_exe = exe_path + ".old"
+        if os.path.exists(old_exe):
+            os.remove(old_exe)
+except Exception:
+    pass
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
