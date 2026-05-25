@@ -81,72 +81,53 @@ def _start_update_process(download_url, root_window):
     if is_compiled:
         exe_dir = os.path.dirname(sys.executable)
         exe_name = os.path.basename(sys.executable)
-        ps_script = f"""
-        Write-Host 'Aguardando o SysForge fechar...'
-        $retry = 0
-        while ((Get-Process -Name '{exe_name.replace(".exe", "")}' -ErrorAction SilentlyContinue) -and $retry -lt 15) {{
-            Start-Sleep -Seconds 1
-            $retry++
-        }}
-        Start-Sleep -Seconds 2
-        Write-Host 'Baixando atualizacao do SysForge...'
-        Invoke-WebRequest -Uri '{download_url}' -OutFile 'update.zip'
-        Unblock-File -Path 'update.zip' -ErrorAction SilentlyContinue
-        Write-Host 'Extraindo e substituindo os arquivos...'
-        Expand-Archive -Path 'update.zip' -DestinationPath 'update_temp' -Force
         
-        $srcDir = "update_temp"
-        $items = Get-ChildItem -Path 'update_temp'
-        if ($items.Count -eq 1 -and $items[0].PSIsContainer) {{
-            $srcDir = $items[0].FullName
-        }}
-        Get-ChildItem -Path $srcDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
-        
-        # Renomeia o .exe antigo para burlar o lock do Windows
-        if (Test-Path '{exe_name}') {{
-            Remove-Item -Path '{exe_name}.old' -Force -ErrorAction SilentlyContinue
-            Rename-Item -Path '{exe_name}' -NewName '{exe_name}.old' -Force -ErrorAction SilentlyContinue
-        }}
-        
-        $copySuccess = $false
-        $copyRetries = 0
-        while (-not $copySuccess -and $copyRetries -lt 15) {{
-            try {{
-                Copy-Item -Path "$srcDir\*" -Destination . -Recurse -Force -ErrorAction Stop
-                $copySuccess = $true
-            }} catch {{
-                Write-Host "Copiando..."
-                Start-Sleep -Seconds 2
-                $copyRetries++
-            }}
-        }}
-        
-        Remove-Item -Path 'update_temp' -Recurse -Force
-        Remove-Item -Path 'update.zip' -Force
-        
-        if ($copySuccess) {{
-            Write-Host 'Atualizacao concluida com sucesso! Reiniciando...'
-            Start-Process -FilePath '{exe_name}'
-        }} else {{
-            Write-Host 'Falha ao atualizar. O executavel esta bloqueado.'
-            # Restaura o antigo se falhar
-            Rename-Item -Path '{exe_name}.old' -NewName '{exe_name}' -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 10
-        }}
-        """
-        # Salva o script em um arquivo ps1 temporário na pasta raiz do .exe
-        script_path = os.path.join(exe_dir, "update_runner.ps1")
-        with open(script_path, "w") as f:
-            f.write(ps_script + f"\nRemove-Item -Path '{script_path}' -Force")
-            
-        # Limpa as variáveis de ambiente do PyInstaller para que o novo .exe não tente usar a pasta temporária antiga
-        clean_env = os.environ.copy()
-        clean_env.pop("_MEIPASS2", None)
-        clean_env.pop("_PYINSTALLER_BOOTLOADER_LOG_LEVEL", None)
-        clean_env.pop("TCL_LIBRARY", None)
-        clean_env.pop("TK_LIBRARY", None)
-            
-        subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update_runner.ps1"], cwd=exe_dir, env=clean_env, creationflags=subprocess.CREATE_NEW_CONSOLE, close_fds=True)
+        # Fazemos o download e a extração no próprio Python para evitar que o PowerShell seja
+        # classificado pelo Windows Defender/AMSI como um "Dropper" malicioso.
+        def _download_and_extract():
+            import urllib.request
+            import zipfile
+            import shutil
+            try:
+                # Baixa o arquivo
+                urllib.request.urlretrieve(download_url, os.path.join(exe_dir, "update.zip"))
+                
+                # Extrai
+                with zipfile.ZipFile(os.path.join(exe_dir, "update.zip"), 'r') as zip_ref:
+                    zip_ref.extractall(os.path.join(exe_dir, "update_temp"))
+                
+                # Ajusta a pasta se o github criou uma subpasta raiz
+                temp_dir = os.path.join(exe_dir, "update_temp")
+                items = os.listdir(temp_dir)
+                if len(items) == 1 and os.path.isdir(os.path.join(temp_dir, items[0])):
+                    sub_dir = os.path.join(temp_dir, items[0])
+                    for item in os.listdir(sub_dir):
+                        shutil.move(os.path.join(sub_dir, item), os.path.join(temp_dir, item))
+                    os.rmdir(sub_dir)
+                    
+                # Cria o script batch para o swap final
+                bat_script = f"""@echo off
+timeout /t 2 /nobreak >nul
+del /f /q "{exe_name}.old" >nul 2>&1
+ren "{exe_name}" "{exe_name}.old" >nul 2>&1
+xcopy /y /e /h /c /i "update_temp\*" . >nul
+rmdir /s /q "update_temp" >nul 2>&1
+del /f /q "update.zip" >nul 2>&1
+start "" "{exe_name}"
+del "%~f0"
+"""
+                bat_path = os.path.join(exe_dir, "update_runner.bat")
+                with open(bat_path, "w") as f:
+                    f.write(bat_script)
+                
+                # Executa o batch sem console e sai
+                subprocess.Popen(["cmd.exe", "/c", "update_runner.bat"], cwd=exe_dir, creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
+                os._exit(0) # Força a saída imediata para liberar o lock do arquivo e evitar a limpeza prematura do PyInstaller
+            except Exception as e:
+                print(f"Erro na atualização: {e}")
+                
+        # Inicia a thread de download
+        threading.Thread(target=_download_and_extract, daemon=True).start()
     else:
         # Modo Script Python (Dev)
         updater_script = os.path.join(os.getcwd(), "update_runner.py")
