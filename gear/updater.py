@@ -75,6 +75,16 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
 
 def _start_update_process(download_url, root_window):
     import sys, os, subprocess
+    import customtkinter as ctk
+    
+    # Cria a tela de carregamento para dar feedback ao usuário
+    loading_frame = ctk.CTkFrame(root_window, fg_color="#0F172A", corner_radius=0)
+    loading_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+    
+    ctk.CTkLabel(loading_frame, text="Baixando e Instalando Atualização...", font=("Inter", 24, "bold"), text_color="#F8FAFC").place(relx=0.5, rely=0.45, anchor="center")
+    ctk.CTkLabel(loading_frame, text="O SysForge será reiniciado automaticamente em instantes.", font=("Inter", 14), text_color="#94A3B8").place(relx=0.5, rely=0.55, anchor="center")
+    
+    root_window.update()
     
     is_compiled = getattr(sys, 'frozen', False)
     
@@ -120,9 +130,16 @@ del "%~f0"
                 with open(bat_path, "w") as f:
                     f.write(bat_script)
                 
+                # Limpa as variáveis de ambiente do PyInstaller para que o novo .exe não tente usar a pasta temporária antiga
+                clean_env = os.environ.copy()
+                clean_env.pop("_MEIPASS2", None)
+                clean_env.pop("_PYINSTALLER_BOOTLOADER_LOG_LEVEL", None)
+                clean_env.pop("TCL_LIBRARY", None)
+                clean_env.pop("TK_LIBRARY", None)
+                
                 # Executa o batch sem console e sai
-                subprocess.Popen(["cmd.exe", "/c", "update_runner.bat"], cwd=exe_dir, creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
-                os._exit(0) # Força a saída imediata para liberar o lock do arquivo e evitar a limpeza prematura do PyInstaller
+                subprocess.Popen(["cmd.exe", "/c", "update_runner.bat"], cwd=exe_dir, env=clean_env, creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
+                os._exit(0) # Força a saída imediata para liberar o lock do arquivo
             except Exception as e:
                 print(f"Erro na atualização: {e}")
                 
