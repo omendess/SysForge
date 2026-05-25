@@ -87,8 +87,15 @@ def _start_update_process(download_url, root_window):
         Invoke-WebRequest -Uri '{download_url}' -OutFile 'update.zip'
         Write-Host 'Extraindo e substituindo os arquivos...'
         Expand-Archive -Path 'update.zip' -DestinationPath 'update_temp' -Force
-        $src = Get-ChildItem -Path 'update_temp' | Select-Object -First 1
-        Copy-Item -Path "$($src.FullName)\*" -Destination . -Recurse -Force
+        
+        # Verifica se o zip descompactado tem apenas uma pasta raiz (padrão do GitHub)
+        $items = Get-ChildItem -Path 'update_temp'
+        if ($items.Count -eq 1 -and $items[0].PSIsContainer) {{
+            Copy-Item -Path "$($items[0].FullName)\*" -Destination . -Recurse -Force
+        }} else {{
+            Copy-Item -Path "update_temp\*" -Destination . -Recurse -Force
+        }}
+        
         Remove-Item -Path 'update_temp' -Recurse -Force
         Remove-Item -Path 'update.zip' -Force
         Write-Host 'Atualizacao concluida com sucesso! Reiniciando...'
