@@ -76,7 +76,6 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
 def _start_update_process(download_url, root_window):
     import sys, os, subprocess
     import customtkinter as ctk
-    import threading
     
     # Cria a tela de carregamento para dar feedback ao usuário
     loading_frame = ctk.CTkFrame(root_window, fg_color="#0F172A", corner_radius=0)
@@ -109,7 +108,7 @@ def _start_update_process(download_url, root_window):
                     progress = 1.0
                 progress_bar.set(progress)
                 percent_label.configure(text=f"{int(progress * 100)}%")
-                root_window.update_idletasks()
+                root_window.update()
         
         def _download_and_extract():
             import urllib.request
@@ -117,15 +116,15 @@ def _start_update_process(download_url, root_window):
             import shutil
             try:
                 status_label.configure(text="Baixando arquivos da nova versão...")
-                root_window.update_idletasks()
+                root_window.update()
                 
-                # Baixa o arquivo com barra de progresso
+                # Baixa o arquivo com barra de progresso (Roda na Main Thread, mas o reporthook mantém a UI viva)
                 urllib.request.urlretrieve(download_url, os.path.join(exe_dir, "update.zip"), reporthook=reporthook)
                 
                 status_label.configure(text="Extraindo arquivos...")
                 progress_bar.configure(mode="indetermine")
                 progress_bar.start()
-                root_window.update_idletasks()
+                root_window.update()
                 
                 # Extrai
                 with zipfile.ZipFile(os.path.join(exe_dir, "update.zip"), 'r') as zip_ref:
@@ -141,7 +140,7 @@ def _start_update_process(download_url, root_window):
                     os.rmdir(sub_dir)
                     
                 status_label.configure(text="Concluindo atualização...")
-                root_window.update_idletasks()
+                root_window.update()
                 
                 # Cria o script batch para o swap final
                 bat_script = f"""@echo off
@@ -171,10 +170,11 @@ del "%~f0"
             except Exception as e:
                 status_label.configure(text=f"Erro: {e}")
                 progress_bar.stop()
-                root_window.update_idletasks()
+                root_window.update()
                 
-        # Inicia a thread de download
-        threading.Thread(target=_download_and_extract, daemon=True).start()
+        # Inicia o processo de download chamando a função na thread principal
+        # O uso de root_window.update() no reporthook garante que a tela não congele.
+        root_window.after(100, _download_and_extract)
     else:
         # Modo Script Python (Dev)
         updater_script = os.path.join(os.getcwd(), "update_runner.py")
