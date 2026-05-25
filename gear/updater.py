@@ -9,8 +9,8 @@ import zipfile
 CURRENT_VERSION = "2.0.0"
 
 # Exemplo de URL. Para funcionar, crie um arquivo version.json no repositório do GitHub e substitua essa URL pela URL *RAW* do arquivo.
-# O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/USER/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}
-UPDATE_URL = "https://raw.githubusercontent.com/SEU_USUARIO/SysForge/main/version.json"
+# O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/omendess/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}
+UPDATE_URL = "https://raw.githubusercontent.com/omendess/SysForge/main/version.json"
 
 def check_for_updates(root_window):
     """Verifica se há atualizações no GitHub e notifica o usuário."""
