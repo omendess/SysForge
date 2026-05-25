@@ -33,7 +33,8 @@ CR = 12
 class AppWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("SysForge 2.0 — Motor de Implantação")
+        from gear.updater import CURRENT_VERSION
+        self.title(f"SysForge {CURRENT_VERSION} — Motor de Implantação")
         self.geometry("1120x760")
         self.minsize(860, 620)
         
@@ -79,9 +80,10 @@ class AppWindow(ctk.CTk):
             self.nav_btns[key] = b
 
         # Footer badge
+        from gear.updater import CURRENT_VERSION
         badge = ctk.CTkFrame(sb, fg_color="#0F172A", corner_radius=8)
         badge.grid(row=10, column=0, padx=14, pady=(0, 20), sticky="ew")
-        ctk.CTkLabel(badge, text="v2.0  ·  Windows 11", font=ctk.CTkFont(size=11), text_color=TXT_MUTED).pack(pady=8)
+        ctk.CTkLabel(badge, text=f"v{CURRENT_VERSION}  ·  Windows 11", font=ctk.CTkFont(size=11), text_color=TXT_MUTED).pack(pady=8)
 
     # ─── Views Container ────────────────────────────────────
     def _build_views(self):

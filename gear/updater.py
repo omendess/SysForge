@@ -6,7 +6,7 @@ import urllib.request
 import json
 import zipfile
 
-CURRENT_VERSION = "2.0.8"
+CURRENT_VERSION = "2.0.9"
 
 # Exemplo de URL. Para funcionar, crie um arquivo version.json no repositório do GitHub e substitua essa URL pela URL *RAW* do arquivo.
 # O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/omendess/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}
@@ -16,7 +16,9 @@ def check_for_updates(root_window, manual=False):
     """Verifica se há atualizações no GitHub e notifica o usuário."""
     def _check():
         try:
-            req = urllib.request.Request(UPDATE_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            import time
+            cache_buster_url = f"{UPDATE_URL}?t={int(time.time())}"
+            req = urllib.request.Request(cache_buster_url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
                 
