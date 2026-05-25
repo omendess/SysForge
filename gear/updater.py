@@ -101,14 +101,20 @@ def _start_update_process(download_url, root_window):
         exe_dir = os.path.dirname(sys.executable)
         exe_name = os.path.basename(sys.executable)
         
+        last_update_progress = [0.0]
+        
         def reporthook(count, block_size, total_size):
             if total_size > 0:
                 progress = (count * block_size) / total_size
                 if progress > 1.0:
                     progress = 1.0
-                progress_bar.set(progress)
-                percent_label.configure(text=f"{int(progress * 100)}%")
-                root_window.update()
+                
+                # Atualiza a UI apenas a cada 2% para evitar sobrecarregar o Tkinter (evita crash imediato)
+                if progress - last_update_progress[0] >= 0.02 or progress == 1.0:
+                    last_update_progress[0] = progress
+                    progress_bar.set(progress)
+                    percent_label.configure(text=f"{int(progress * 100)}%")
+                    root_window.update()
         
         def _download_and_extract():
             import urllib.request
