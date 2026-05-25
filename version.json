@@ -1,5 +1,5 @@
 {
-  "version": "2.0.9",
+  "version": "2.1.0",
   "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
   "changelog": "Update architecture changed to Direct EXE Download."
 }

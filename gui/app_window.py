@@ -733,7 +733,7 @@ class AppWindow(ctk.CTk):
         ctk.CTkLabel(card, text=f"Versão {CURRENT_VERSION}", font=ctk.CTkFont(size=14), text_color=TXT_MUTED).pack(pady=(0, 20))
         
         info_text = (
-            "Criado por: Orlando Mendes\n"
+            "Desenvolvido por: M labs\n"
             "Data de Criação: Maio de 2026\n\n"
             "O SysForge é um motor de implantação de alto desempenho projetado para\n"
             "automatizar a formatação, instalação de softwares e otimização de bancadas."
