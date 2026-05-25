@@ -91,6 +91,7 @@ def _start_update_process(download_url, root_window):
         Start-Sleep -Seconds 2
         Write-Host 'Baixando atualizacao do SysForge...'
         Invoke-WebRequest -Uri '{download_url}' -OutFile 'update.zip'
+        Unblock-File -Path 'update.zip' -ErrorAction SilentlyContinue
         Write-Host 'Extraindo e substituindo os arquivos...'
         Expand-Archive -Path 'update.zip' -DestinationPath 'update_temp' -Force
         
@@ -99,6 +100,7 @@ def _start_update_process(download_url, root_window):
         if ($items.Count -eq 1 -and $items[0].PSIsContainer) {{
             $srcDir = $items[0].FullName
         }}
+        Get-ChildItem -Path $srcDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
         
         $copySuccess = $false
         $copyRetries = 0
