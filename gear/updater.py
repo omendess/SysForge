@@ -76,13 +76,23 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
 def _start_update_process(download_url, root_window):
     import sys, os, subprocess
     import customtkinter as ctk
+    import threading
     
     # Cria a tela de carregamento para dar feedback ao usuário
     loading_frame = ctk.CTkFrame(root_window, fg_color="#0F172A", corner_radius=0)
     loading_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
     
-    ctk.CTkLabel(loading_frame, text="Baixando e Instalando Atualização...", font=("Inter", 24, "bold"), text_color="#F8FAFC").place(relx=0.5, rely=0.45, anchor="center")
-    ctk.CTkLabel(loading_frame, text="O SysForge será reiniciado automaticamente em instantes.", font=("Inter", 14), text_color="#94A3B8").place(relx=0.5, rely=0.55, anchor="center")
+    ctk.CTkLabel(loading_frame, text="Atualização do SysForge", font=("Inter", 24, "bold"), text_color="#F8FAFC").place(relx=0.5, rely=0.35, anchor="center")
+    
+    status_label = ctk.CTkLabel(loading_frame, text="Iniciando download...", font=("Inter", 14), text_color="#94A3B8")
+    status_label.place(relx=0.5, rely=0.45, anchor="center")
+    
+    progress_bar = ctk.CTkProgressBar(loading_frame, width=400, fg_color="#1E293B", progress_color="#3B82F6")
+    progress_bar.place(relx=0.5, rely=0.55, anchor="center")
+    progress_bar.set(0)
+    
+    percent_label = ctk.CTkLabel(loading_frame, text="0%", font=("Inter", 14, "bold"), text_color="#38BDF8")
+    percent_label.place(relx=0.5, rely=0.62, anchor="center")
     
     root_window.update()
     
@@ -92,15 +102,30 @@ def _start_update_process(download_url, root_window):
         exe_dir = os.path.dirname(sys.executable)
         exe_name = os.path.basename(sys.executable)
         
-        # Fazemos o download e a extração no próprio Python para evitar que o PowerShell seja
-        # classificado pelo Windows Defender/AMSI como um "Dropper" malicioso.
+        def reporthook(count, block_size, total_size):
+            if total_size > 0:
+                progress = (count * block_size) / total_size
+                if progress > 1.0:
+                    progress = 1.0
+                progress_bar.set(progress)
+                percent_label.configure(text=f"{int(progress * 100)}%")
+                root_window.update_idletasks()
+        
         def _download_and_extract():
             import urllib.request
             import zipfile
             import shutil
             try:
-                # Baixa o arquivo
-                urllib.request.urlretrieve(download_url, os.path.join(exe_dir, "update.zip"))
+                status_label.configure(text="Baixando arquivos da nova versão...")
+                root_window.update_idletasks()
+                
+                # Baixa o arquivo com barra de progresso
+                urllib.request.urlretrieve(download_url, os.path.join(exe_dir, "update.zip"), reporthook=reporthook)
+                
+                status_label.configure(text="Extraindo arquivos...")
+                progress_bar.configure(mode="indetermine")
+                progress_bar.start()
+                root_window.update_idletasks()
                 
                 # Extrai
                 with zipfile.ZipFile(os.path.join(exe_dir, "update.zip"), 'r') as zip_ref:
@@ -115,6 +140,9 @@ def _start_update_process(download_url, root_window):
                         shutil.move(os.path.join(sub_dir, item), os.path.join(temp_dir, item))
                     os.rmdir(sub_dir)
                     
+                status_label.configure(text="Concluindo atualização...")
+                root_window.update_idletasks()
+                
                 # Cria o script batch para o swap final
                 bat_script = f"""@echo off
 timeout /t 2 /nobreak >nul
@@ -141,7 +169,9 @@ del "%~f0"
                 subprocess.Popen(["cmd.exe", "/c", "update_runner.bat"], cwd=exe_dir, env=clean_env, creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
                 os._exit(0) # Força a saída imediata para liberar o lock do arquivo
             except Exception as e:
-                print(f"Erro na atualização: {e}")
+                status_label.configure(text=f"Erro: {e}")
+                progress_bar.stop()
+                root_window.update_idletasks()
                 
         # Inicia a thread de download
         threading.Thread(target=_download_and_extract, daemon=True).start()
