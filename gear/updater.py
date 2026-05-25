@@ -74,7 +74,7 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
     ctk.CTkButton(btn_frame, text="Lembrar Depois", fg_color="#334155", hover_color="#1E293B", command=dialog.destroy).pack(side="right", expand=True, padx=5)
 
 def _start_update_process(download_url, root_window):
-    import sys, os, subprocess
+    import sys, os, subprocess, shutil
     import customtkinter as ctk
     
     # Cria a tela de carregamento para dar feedback ao usuário
@@ -83,105 +83,111 @@ def _start_update_process(download_url, root_window):
     
     ctk.CTkLabel(loading_frame, text="Atualização do SysForge", font=("Inter", 24, "bold"), text_color="#F8FAFC").place(relx=0.5, rely=0.35, anchor="center")
     
-    status_label = ctk.CTkLabel(loading_frame, text="Iniciando download...", font=("Inter", 14), text_color="#94A3B8")
+    status_label = ctk.CTkLabel(loading_frame, text="Preparando o motor de atualização...", font=("Inter", 14), text_color="#94A3B8")
     status_label.place(relx=0.5, rely=0.45, anchor="center")
-    
-    progress_bar = ctk.CTkProgressBar(loading_frame, width=400, fg_color="#1E293B", progress_color="#3B82F6")
-    progress_bar.place(relx=0.5, rely=0.55, anchor="center")
-    progress_bar.set(0)
-    
-    percent_label = ctk.CTkLabel(loading_frame, text="0%", font=("Inter", 14, "bold"), text_color="#38BDF8")
-    percent_label.place(relx=0.5, rely=0.62, anchor="center")
     
     root_window.update()
     
     is_compiled = getattr(sys, 'frozen', False)
     
     if is_compiled:
-        exe_dir = os.path.dirname(sys.executable)
-        exe_name = os.path.basename(sys.executable)
+        exe_path = sys.executable
+        exe_dir = os.path.dirname(exe_path)
         
-        last_update_progress = [0.0]
+        try:
+            # Copia a si mesmo para a pasta TEMP para atuar como o atualizador independente
+            temp_dir = os.environ.get("TEMP", exe_dir)
+            temp_updater = os.path.join(temp_dir, "SysForge_Updater.exe")
+            
+            # Garante que não haja resíduos do atualizador
+            if os.path.exists(temp_updater):
+                try: os.remove(temp_updater)
+                except: pass
+                
+            shutil.copy2(exe_path, temp_updater)
+            
+            # Limpa as variáveis de ambiente para o processo filho
+            clean_env = os.environ.copy()
+            clean_env.pop("_MEIPASS2", None)
+            clean_env.pop("_PYINSTALLER_BOOTLOADER_LOG_LEVEL", None)
+            clean_env.pop("TCL_LIBRARY", None)
+            clean_env.pop("TK_LIBRARY", None)
+            
+            # Inicia o SysForge_Updater.exe no modo de atualização
+            # O processo não terá janela de console associada, mas irá iniciar o executável no fim
+            subprocess.Popen([temp_updater, "--update-mode", download_url, exe_dir], env=clean_env, creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
+            os._exit(0)
+        except Exception as e:
+            status_label.configure(text=f"Erro fatal: {e}")
+            root_window.update()
+
+def execute_update_mode(download_url, target_dir):
+    import time, urllib.request, zipfile, shutil, os, subprocess, sys
+    
+    # 1. Espera o processo original do SysForge morrer
+    time.sleep(2)
+    
+    temp_dir = os.environ.get("TEMP", os.path.dirname(sys.executable))
+    zip_path = os.path.join(temp_dir, "update.zip")
+    extract_path = os.path.join(temp_dir, "update_temp")
+    
+    try:
+        # 2. Renomeia o executável original alvo para permitir a sobrescrita
+        old_exe = os.path.join(target_dir, "SysForge.exe.old")
+        target_exe = os.path.join(target_dir, "SysForge.exe")
         
-        def reporthook(count, block_size, total_size):
-            if total_size > 0:
-                progress = (count * block_size) / total_size
-                if progress > 1.0:
-                    progress = 1.0
-                
-                # Atualiza a UI apenas a cada 2% para evitar sobrecarregar o Tkinter (evita crash imediato)
-                if progress - last_update_progress[0] >= 0.02 or progress == 1.0:
-                    last_update_progress[0] = progress
-                    progress_bar.set(progress)
-                    percent_label.configure(text=f"{int(progress * 100)}%")
-                    root_window.update()
+        if os.path.exists(old_exe):
+            try: os.remove(old_exe)
+            except: pass
+            
+        if os.path.exists(target_exe):
+            os.rename(target_exe, old_exe)
+            
+        # 3. Baixa a nova versão do GitHub
+        urllib.request.urlretrieve(download_url, zip_path)
         
-        def _download_and_extract():
-            import urllib.request
-            import zipfile
-            import shutil
-            try:
-                status_label.configure(text="Baixando arquivos da nova versão...")
-                root_window.update()
-                
-                # Baixa o arquivo com barra de progresso (Roda na Main Thread, mas o reporthook mantém a UI viva)
-                urllib.request.urlretrieve(download_url, os.path.join(exe_dir, "update.zip"), reporthook=reporthook)
-                
-                status_label.configure(text="Extraindo arquivos...")
-                progress_bar.configure(mode="indetermine")
-                progress_bar.start()
-                root_window.update()
-                
-                # Extrai
-                with zipfile.ZipFile(os.path.join(exe_dir, "update.zip"), 'r') as zip_ref:
-                    zip_ref.extractall(os.path.join(exe_dir, "update_temp"))
-                
-                # Ajusta a pasta se o github criou uma subpasta raiz
-                temp_dir = os.path.join(exe_dir, "update_temp")
-                items = os.listdir(temp_dir)
-                if len(items) == 1 and os.path.isdir(os.path.join(temp_dir, items[0])):
-                    sub_dir = os.path.join(temp_dir, items[0])
-                    for item in os.listdir(sub_dir):
-                        shutil.move(os.path.join(sub_dir, item), os.path.join(temp_dir, item))
-                    os.rmdir(sub_dir)
-                    
-                status_label.configure(text="Concluindo atualização...")
-                root_window.update()
-                
-                # Cria o script batch para o swap final
-                bat_script = f"""@echo off
-timeout /t 2 /nobreak >nul
-del /f /q "{exe_name}.old" >nul 2>&1
-ren "{exe_name}" "{exe_name}.old" >nul 2>&1
-xcopy /y /e /h /c /i "update_temp\*" . >nul
-rmdir /s /q "update_temp" >nul 2>&1
-del /f /q "update.zip" >nul 2>&1
-explorer.exe "{exe_name}"
-del "%~f0"
-"""
-                bat_path = os.path.join(exe_dir, "update_runner.bat")
-                with open(bat_path, "w") as f:
-                    f.write(bat_script)
-                
-                # Limpa as variáveis de ambiente do PyInstaller para que o novo .exe não tente usar a pasta temporária antiga
-                clean_env = os.environ.copy()
-                clean_env.pop("_MEIPASS2", None)
-                clean_env.pop("_PYINSTALLER_BOOTLOADER_LOG_LEVEL", None)
-                clean_env.pop("TCL_LIBRARY", None)
-                clean_env.pop("TK_LIBRARY", None)
-                
-                # Executa o batch sem console e sai
-                subprocess.Popen(["cmd.exe", "/c", "update_runner.bat"], cwd=exe_dir, env=clean_env, creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
-                os._exit(0) # Força a saída imediata para liberar o lock do arquivo
-            except Exception as e:
-                status_label.configure(text=f"Erro: {e}")
-                progress_bar.stop()
-                root_window.update()
-                
-        # Inicia o processo de download chamando a função na thread principal
-        # O uso de root_window.update() no reporthook garante que a tela não congele.
-        root_window.after(100, _download_and_extract)
-    else:
+        # 4. Extrai a nova versão
+        if os.path.exists(extract_path):
+            shutil.rmtree(extract_path)
+            
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+            
+        # 5. Ajusta subpasta se o GitHub empacotou dentro de uma pasta raiz
+        items = os.listdir(extract_path)
+        if len(items) == 1 and os.path.isdir(os.path.join(extract_path, items[0])):
+            sub_dir = os.path.join(extract_path, items[0])
+            for item in os.listdir(sub_dir):
+                shutil.move(os.path.join(sub_dir, item), os.path.join(extract_path, item))
+            os.rmdir(sub_dir)
+            
+        # 6. Move o executável finalizado para o diretório alvo
+        for item in os.listdir(extract_path):
+            s = os.path.join(extract_path, item)
+            d = os.path.join(target_dir, item)
+            if os.path.exists(d):
+                if os.path.isdir(d):
+                    shutil.rmtree(d)
+                else:
+                    os.remove(d)
+            shutil.move(s, d)
+            
+        # 7. Limpeza dos temporários
+        try: shutil.rmtree(extract_path)
+        except: pass
+        try: os.remove(zip_path)
+        except: pass
+        
+        # 8. Inicia a nova versão do SysForge. Usamos os.startfile que simula o clique nativo do Explorer
+        # Isso garante que a elevação do UAC funcione perfeitamente.
+        new_exe_path = os.path.join(target_dir, "SysForge.exe")
+        os.startfile(new_exe_path)
+        
+    except Exception as e:
+        pass
+    finally:
+        # 9. Encerra o processo do atualizador
+        os._exit(0)
         # Modo Script Python (Dev)
         updater_script = os.path.join(os.getcwd(), "update_runner.py")
         script_content = f'''import urllib.request

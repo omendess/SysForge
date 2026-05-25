@@ -1,6 +1,5 @@
 import sys
 import os
-import ctypes
 
 try:
     if getattr(sys, 'frozen', False):
@@ -10,13 +9,13 @@ try:
             os.remove(old_exe)
 except Exception:
     pass
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--update-mode":
+        from gear.updater import execute_update_mode
+        execute_update_mode(sys.argv[2], sys.argv[3])
+        sys.exit(0)
+
     # The current working directory might change during elevation, so we make sure it's the script dir.
     os.chdir(os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__)))
 
