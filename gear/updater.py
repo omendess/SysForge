@@ -6,7 +6,7 @@ import urllib.request
 import json
 import zipfile
 
-CURRENT_VERSION = "2.0.2"
+CURRENT_VERSION = "2.0.8"
 
 # Exemplo de URL. Para funcionar, crie um arquivo version.json no repositório do GitHub e substitua essa URL pela URL *RAW* do arquivo.
 # O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/omendess/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}
@@ -122,71 +122,35 @@ def _start_update_process(download_url, root_window):
             root_window.update()
 
 def execute_update_mode(download_url, target_dir):
-    import time, urllib.request, zipfile, shutil, os, subprocess, sys
+    import time, urllib.request, os, sys
     
-    # 1. Espera o processo original do SysForge morrer
-    time.sleep(2)
+    old_exe = os.path.join(target_dir, "SysForge.exe.old")
+    target_exe = os.path.join(target_dir, "SysForge.exe")
     
-    temp_dir = os.environ.get("TEMP", os.path.dirname(sys.executable))
-    zip_path = os.path.join(temp_dir, "update.zip")
-    extract_path = os.path.join(temp_dir, "update_temp")
+    # 1. Loop de tentativas para liberar o arquivo original (Condição de Corrida)
+    max_attempts = 20
+    for attempt in range(max_attempts):
+        try:
+            if os.path.exists(old_exe):
+                try: os.remove(old_exe)
+                except Exception: pass
+                
+            if os.path.exists(target_exe):
+                os.rename(target_exe, old_exe)
+            break # Renomeação bem sucedida, sai do loop
+        except PermissionError:
+            time.sleep(0.5)
     
     try:
-        # 2. Renomeia o executável original alvo para permitir a sobrescrita
-        old_exe = os.path.join(target_dir, "SysForge.exe.old")
-        target_exe = os.path.join(target_dir, "SysForge.exe")
+        # 2. Baixa a nova versão do executável DIRETAMENTE para o caminho final
+        urllib.request.urlretrieve(download_url, target_exe)
         
-        if os.path.exists(old_exe):
-            try: os.remove(old_exe)
-            except: pass
-            
-        if os.path.exists(target_exe):
-            os.rename(target_exe, old_exe)
-            
-        # 3. Baixa a nova versão do GitHub
-        urllib.request.urlretrieve(download_url, zip_path)
-        
-        # 4. Extrai a nova versão
-        if os.path.exists(extract_path):
-            shutil.rmtree(extract_path)
-            
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_path)
-            
-        # 5. Ajusta subpasta se o GitHub empacotou dentro de uma pasta raiz
-        items = os.listdir(extract_path)
-        if len(items) == 1 and os.path.isdir(os.path.join(extract_path, items[0])):
-            sub_dir = os.path.join(extract_path, items[0])
-            for item in os.listdir(sub_dir):
-                shutil.move(os.path.join(sub_dir, item), os.path.join(extract_path, item))
-            os.rmdir(sub_dir)
-            
-        # 6. Move o executável finalizado para o diretório alvo
-        for item in os.listdir(extract_path):
-            s = os.path.join(extract_path, item)
-            d = os.path.join(target_dir, item)
-            if os.path.exists(d):
-                if os.path.isdir(d):
-                    shutil.rmtree(d)
-                else:
-                    os.remove(d)
-            shutil.move(s, d)
-            
-        # 7. Limpeza dos temporários
-        try: shutil.rmtree(extract_path)
-        except: pass
-        try: os.remove(zip_path)
-        except: pass
-        
-        # 8. Inicia a nova versão do SysForge. Usamos os.startfile que simula o clique nativo do Explorer
-        # Isso garante que a elevação do UAC funcione perfeitamente.
-        new_exe_path = os.path.join(target_dir, "SysForge.exe")
-        os.startfile(new_exe_path)
-        
+        # 3. Inicia a nova versão do SysForge utilizando a API nativa do Windows Explorer
+        os.startfile(target_exe)
     except Exception as e:
         pass
     finally:
-        # 9. Encerra o processo do atualizador
+        # 4. Encerra o processo do atualizador
         os._exit(0)
         # Modo Script Python (Dev)
         updater_script = os.path.join(os.getcwd(), "update_runner.py")
