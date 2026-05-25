@@ -139,7 +139,14 @@ def _start_update_process(download_url, root_window):
         with open(script_path, "w") as f:
             f.write(ps_script + f"\nRemove-Item -Path '{script_path}' -Force")
             
-        subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update_runner.ps1"], cwd=exe_dir, creationflags=subprocess.CREATE_NEW_CONSOLE, close_fds=True)
+        # Limpa as variáveis de ambiente do PyInstaller para que o novo .exe não tente usar a pasta temporária antiga
+        clean_env = os.environ.copy()
+        clean_env.pop("_MEIPASS2", None)
+        clean_env.pop("_PYINSTALLER_BOOTLOADER_LOG_LEVEL", None)
+        clean_env.pop("TCL_LIBRARY", None)
+        clean_env.pop("TK_LIBRARY", None)
+            
+        subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update_runner.ps1"], cwd=exe_dir, env=clean_env, creationflags=subprocess.CREATE_NEW_CONSOLE, close_fds=True)
     else:
         # Modo Script Python (Dev)
         updater_script = os.path.join(os.getcwd(), "update_runner.py")
