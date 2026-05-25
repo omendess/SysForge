@@ -48,20 +48,20 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
     
     dialog = ctk.CTkToplevel(root_window)
     dialog.title("Atualização Disponível!")
-    dialog.geometry("450x250")
+    dialog.geometry("450x300")
     dialog.attributes("-topmost", True)
     dialog.resizable(False, False)
     
     # Centralizar Popup
     dialog.update_idletasks()
     x = root_window.winfo_x() + (root_window.winfo_width() // 2) - (450 // 2)
-    y = root_window.winfo_y() + (root_window.winfo_height() // 2) - (250 // 2)
+    y = root_window.winfo_y() + (root_window.winfo_height() // 2) - (300 // 2)
     dialog.geometry(f"+{x}+{y}")
     
     ctk.CTkLabel(dialog, text=f"SysForge {new_version} está disponível!", font=ctk.CTkFont(size=18, weight="bold"), text_color="#3B82F6").pack(pady=(20, 5))
     ctk.CTkLabel(dialog, text=f"Versão atual: {CURRENT_VERSION}", font=ctk.CTkFont(size=12), text_color="gray").pack()
     
-    ctk.CTkLabel(dialog, text=f"Novidades:\n{changelog}", font=ctk.CTkFont(size=13), justify="center").pack(pady=(15, 20))
+    ctk.CTkLabel(dialog, text=f"Novidades:\n{changelog}", font=ctk.CTkFont(size=13), justify="center", wraplength=400).pack(pady=(15, 20), padx=20)
     
     btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
     btn_frame.pack(fill="x", padx=40)
@@ -79,10 +79,16 @@ def _start_update_process(download_url, root_window):
     is_compiled = getattr(sys, 'frozen', False)
     
     if is_compiled:
+        exe_dir = os.path.dirname(sys.executable)
         exe_name = os.path.basename(sys.executable)
         ps_script = f"""
         Write-Host 'Aguardando o SysForge fechar...'
-        Start-Sleep -Seconds 3
+        $retry = 0
+        while ((Get-Process -Name '{exe_name.replace(".exe", "")}' -ErrorAction SilentlyContinue) -and $retry -lt 15) {{
+            Start-Sleep -Seconds 1
+            $retry++
+        }}
+        Start-Sleep -Seconds 2
         Write-Host 'Baixando atualizacao do SysForge...'
         Invoke-WebRequest -Uri '{download_url}' -OutFile 'update.zip'
         Write-Host 'Extraindo e substituindo os arquivos...'
@@ -101,12 +107,12 @@ def _start_update_process(download_url, root_window):
         Write-Host 'Atualizacao concluida com sucesso! Reiniciando...'
         Start-Process -FilePath '{exe_name}'
         """
-        # Salva o script em um arquivo ps1 temporário
-        script_path = os.path.join(os.getcwd(), "update_runner.ps1")
+        # Salva o script em um arquivo ps1 temporário na pasta raiz do .exe
+        script_path = os.path.join(exe_dir, "update_runner.ps1")
         with open(script_path, "w") as f:
             f.write(ps_script + f"\nRemove-Item -Path '{script_path}' -Force")
             
-        subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update_runner.ps1"], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update_runner.ps1"], cwd=exe_dir, creationflags=subprocess.CREATE_NEW_CONSOLE, close_fds=True)
     else:
         # Modo Script Python (Dev)
         updater_script = os.path.join(os.getcwd(), "update_runner.py")
