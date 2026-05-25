@@ -94,18 +94,35 @@ def _start_update_process(download_url, root_window):
         Write-Host 'Extraindo e substituindo os arquivos...'
         Expand-Archive -Path 'update.zip' -DestinationPath 'update_temp' -Force
         
-        # Verifica se o zip descompactado tem apenas uma pasta raiz (padrão do GitHub)
+        $srcDir = "update_temp"
         $items = Get-ChildItem -Path 'update_temp'
         if ($items.Count -eq 1 -and $items[0].PSIsContainer) {{
-            Copy-Item -Path "$($items[0].FullName)\*" -Destination . -Recurse -Force
-        }} else {{
-            Copy-Item -Path "update_temp\*" -Destination . -Recurse -Force
+            $srcDir = $items[0].FullName
+        }}
+        
+        $copySuccess = $false
+        $copyRetries = 0
+        while (-not $copySuccess -and $copyRetries -lt 20) {{
+            try {{
+                Copy-Item -Path "$srcDir\*" -Destination . -Recurse -Force -ErrorAction Stop
+                $copySuccess = $true
+            }} catch {{
+                Write-Host "Arquivo em uso. Tentando novamente..."
+                Start-Sleep -Seconds 2
+                $copyRetries++
+            }}
         }}
         
         Remove-Item -Path 'update_temp' -Recurse -Force
         Remove-Item -Path 'update.zip' -Force
-        Write-Host 'Atualizacao concluida com sucesso! Reiniciando...'
-        Start-Process -FilePath '{exe_name}'
+        
+        if ($copySuccess) {{
+            Write-Host 'Atualizacao concluida com sucesso! Reiniciando...'
+            Start-Process -FilePath '{exe_name}'
+        }} else {{
+            Write-Host 'Falha ao atualizar. O executavel esta bloqueado.'
+            Start-Sleep -Seconds 10
+        }}
         """
         # Salva o script em um arquivo ps1 temporário na pasta raiz do .exe
         script_path = os.path.join(exe_dir, "update_runner.ps1")

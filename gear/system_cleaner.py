@@ -37,6 +37,9 @@ def clean_temp_folders():
         if not folder or not os.path.exists(folder):
             continue
         for item in os.listdir(folder):
+            # NÃO DELETAR PASTAS DO PYINSTALLER (_MEIxxxx)
+            if item.startswith("_MEI"):
+                continue
             item_path = os.path.join(folder, item)
             try:
                 if os.path.isfile(item_path) or os.path.islink(item_path):
