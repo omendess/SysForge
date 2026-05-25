@@ -713,3 +713,32 @@ class AppWindow(ctk.CTk):
     def _clear_logs(self):
         LOG.clear()
         self._refresh_logs()
+
+    # ═══════════════════════════════════════════════════════
+    #  INFO / SOBRE
+    # ═══════════════════════════════════════════════════════
+    def _build_info(self, view):
+        header = ctk.CTkFrame(view, fg_color="transparent")
+        header.pack(fill="x", pady=(0, 20))
+        self._section_title(header, "Sobre o SysForge", "Informações do Sistema e Atualizações")
+        
+        card = self._card(view)
+        card.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        from gear.updater import CURRENT_VERSION, check_for_updates
+        
+        ctk.CTkLabel(card, text="⚒️ SysForge", font=ctk.CTkFont(size=32, weight="bold"), text_color=ACCENT).pack(pady=(40, 5))
+        ctk.CTkLabel(card, text=f"Versão {CURRENT_VERSION}", font=ctk.CTkFont(size=14), text_color=TXT_MUTED).pack(pady=(0, 20))
+        
+        info_text = (
+            "Criado por: Orlando Mendes\n"
+            "Data de Criação: Maio de 2026\n\n"
+            "O SysForge é um motor de implantação de alto desempenho projetado para\n"
+            "automatizar a formatação, instalação de softwares e otimização de bancadas."
+        )
+        ctk.CTkLabel(card, text=info_text, font=ctk.CTkFont(size=14), text_color=TXT_DIM, justify="center").pack(pady=10)
+        
+        btn_update = ctk.CTkButton(card, text="Verificar Atualizações", height=40, font=ctk.CTkFont(size=14, weight="bold"), 
+                                   fg_color=GREEN, hover_color="#15803D", corner_radius=CR,
+                                   command=lambda: check_for_updates(self, manual=True))
+        btn_update.pack(pady=30)
