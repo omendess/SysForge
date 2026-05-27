@@ -116,13 +116,91 @@ def toggle_dark_mode(enable, cb=None):
             "SystemUsesLightTheme", "REG_DWORD", val, cb, desc_sys)
 
 # ═══════════════════════════════════════════════════════════
+#  MENU DE CONTEXTO CLÁSSICO (Win 11 → Win 10)
+# ═══════════════════════════════════════════════════════════
+def toggle_classic_context_menu(enable, cb=None):
+    """enable=True → Ativa menu clássico. enable=False → Reverte para o novo menu do Win 11."""
+    clsid_path = r"HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32"
+    if enable:
+        # Cria a chave com valor padrão vazio — isso força o menu clássico
+        cmd = ["reg", "add", clsid_path, "/ve", "/t", "REG_SZ", "/d", "", "/f"]
+        try:
+            result = subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, capture_output=True, text=True, timeout=30)
+            if cb:
+                icon = "✅" if result.returncode == 0 else "⚠️"
+                cb(f"{icon} Menu de contexto clássico ativado")
+        except Exception as e:
+            if cb: cb(f"❌ Menu clássico — Erro: {str(e)}")
+    else:
+        # Remove a chave para voltar ao comportamento padrão do Win 11
+        cmd = ["reg", "delete", clsid_path, "/f"]
+        try:
+            subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, capture_output=True, text=True, timeout=30)
+            if cb: cb("✅ Menu de contexto moderno restaurado (padrão Win 11)")
+        except Exception as e:
+            if cb: cb(f"❌ Erro ao restaurar menu: {str(e)}")
+
+# ═══════════════════════════════════════════════════════════
+#  HIBERNAÇÃO / INICIALIZAÇÃO RÁPIDA
+# ═══════════════════════════════════════════════════════════
+def toggle_hibernation(enable, cb=None):
+    """enable=True → Desativa hibernação (libera GBs no C:). enable=False → Reativa."""
+    action = "off" if enable else "on"
+    desc = "Hibernação desativada (hiberfil.sys removido)" if enable else "Hibernação reativada"
+    try:
+        result = subprocess.run(
+            ["powercfg.exe", "/hibernate", action],
+            creationflags=CREATE_NO_WINDOW, capture_output=True, text=True, timeout=30
+        )
+        if cb:
+            icon = "✅" if result.returncode == 0 else "⚠️"
+            cb(f"{icon} {desc}")
+    except Exception as e:
+        if cb: cb(f"❌ Hibernação — Erro: {str(e)}")
+
+# ═══════════════════════════════════════════════════════════
+#  TELA DE BLOQUEIO
+# ═══════════════════════════════════════════════════════════
+def toggle_lock_screen(enable, cb=None):
+    """enable=True → Desativa tela de bloqueio. enable=False → Restaura."""
+    val = "1" if enable else "0"
+    desc = "Tela de bloqueio desativada" if enable else "Tela de bloqueio restaurada (padrão)"
+    run_reg(r"HKLM\SOFTWARE\Policies\Microsoft\Windows\Personalization",
+            "NoLockScreen", "REG_DWORD", val, cb, desc)
+
+# ═══════════════════════════════════════════════════════════
+#  TECLAS DE ADERÊNCIA (STICKY KEYS)
+# ═══════════════════════════════════════════════════════════
+def toggle_sticky_keys(enable, cb=None):
+    """enable=True → Desativa Sticky Keys (flags=506). enable=False → Restaura padrão."""
+    val = "506" if enable else "510"
+    desc = "Teclas de Aderência desativadas" if enable else "Teclas de Aderência restauradas (padrão)"
+    run_reg(r"HKCU\Control Panel\Accessibility\StickyKeys",
+            "Flags", "REG_SZ", val, cb, desc)
+
+# ═══════════════════════════════════════════════════════════
+#  ÍCONE DO CHAT / MEET NOW NA BARRA DE TAREFAS
+# ═══════════════════════════════════════════════════════════
+def toggle_taskbar_chat(enable, cb=None):
+    """enable=True → Oculta ícone do Chat/Meet Now. enable=False → Exibe (padrão)."""
+    val = "0" if enable else "1"
+    desc = "Ícone de Chat/Teams oculto na barra" if enable else "Ícone de Chat/Teams visível (padrão)"
+    run_reg(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "TaskbarMn", "REG_DWORD", val, cb, desc)
+
+# ═══════════════════════════════════════════════════════════
 #  DISPATCHER PRINCIPAL
 # ═══════════════════════════════════════════════════════════
 TWEAKS_MAP = {
-    "disable_telemetry":      ("Telemetria",               toggle_telemetry),
-    "show_hidden_extensions": ("Extensões e Itens Ocultos", toggle_hidden_extensions),
-    "disable_bing_search":    ("Pesquisa Bing",            toggle_bing_search),
-    "enable_dark_mode":       ("Modo Escuro",              toggle_dark_mode),
+    "disable_telemetry":        ("Telemetria",                 toggle_telemetry),
+    "show_hidden_extensions":   ("Extensões e Itens Ocultos",  toggle_hidden_extensions),
+    "disable_bing_search":      ("Pesquisa Bing",              toggle_bing_search),
+    "enable_dark_mode":         ("Modo Escuro",                toggle_dark_mode),
+    "classic_context_menu":     ("Menu de Contexto Clássico",  toggle_classic_context_menu),
+    "disable_hibernation":      ("Desativar Hibernação",       toggle_hibernation),
+    "disable_lock_screen":      ("Desativar Tela de Bloqueio", toggle_lock_screen),
+    "disable_sticky_keys":      ("Desativar Teclas de Aderência", toggle_sticky_keys),
+    "hide_taskbar_chat":        ("Ocultar Chat na Barra",      toggle_taskbar_chat),
 }
 
 def apply_selected_tweaks(tasks_dict, status_callback=None):
@@ -138,7 +216,8 @@ def apply_selected_tweaks(tasks_dict, status_callback=None):
                 status_callback(f"[{i}/{total}] {action}: {name}...")
             func(enable=is_on, cb=status_callback)
             
-            if key in ("show_hidden_extensions", "enable_dark_mode"):
+            if key in ("show_hidden_extensions", "enable_dark_mode", "classic_context_menu",
+                       "hide_taskbar_chat"):
                 needs_explorer_restart = True
             time.sleep(0.3)
     
@@ -169,10 +248,26 @@ def check_reg(hkey, path, key, expected_val):
 
 def get_current_tweak_states():
     """Verifica no registro se os tweaks já estão ativados."""
+    # Menu clássico: chave existe = ativado
+    def _classic_menu_active():
+        try:
+            k = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                               r"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32",
+                               0, winreg.KEY_READ)
+            winreg.CloseKey(k)
+            return True
+        except OSError:
+            return False
+
     states = {
-        "disable_telemetry": check_reg(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "AllowTelemetry", 0),
-        "show_hidden_extensions": check_reg(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "HideFileExt", 0),
-        "disable_bing_search": check_reg(winreg.HKEY_CURRENT_USER, r"Software\Policies\Microsoft\Windows\Explorer", "DisableSearchBoxSuggestions", 1),
-        "enable_dark_mode": check_reg(winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 0)
+        "disable_telemetry":      check_reg(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "AllowTelemetry", 0),
+        "show_hidden_extensions": check_reg(winreg.HKEY_CURRENT_USER,  r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "HideFileExt", 0),
+        "disable_bing_search":    check_reg(winreg.HKEY_CURRENT_USER,  r"Software\Policies\Microsoft\Windows\Explorer", "DisableSearchBoxSuggestions", 1),
+        "enable_dark_mode":       check_reg(winreg.HKEY_CURRENT_USER,  r"SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 0),
+        "classic_context_menu":   _classic_menu_active(),
+        "disable_hibernation":    False,   # powercfg não tem estado legível via reg de forma confiável
+        "disable_lock_screen":    check_reg(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\Personalization", "NoLockScreen", 1),
+        "disable_sticky_keys":    check_reg(winreg.HKEY_CURRENT_USER,  r"Control Panel\Accessibility\StickyKeys", "Flags", "506"),
+        "hide_taskbar_chat":      check_reg(winreg.HKEY_CURRENT_USER,  r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "TaskbarMn", 0),
     }
     return states

@@ -1,3 +1,5 @@
 customtkinter
 psutil
 pyinstaller
+opencv-python
+Pillow

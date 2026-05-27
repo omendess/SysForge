@@ -29,8 +29,30 @@ SOFTWARE_DICT = {
         "Python 3.12": "Python.Python.3.12",
         "Git": "Git.Git",
         "Docker Desktop": "Docker.DockerDesktop",
+        "Postman": "Postman.Postman",
+        "Insomnia": "Kong.Insomnia",
+        "Android Studio": "Google.AndroidStudio",
+        "IntelliJ IDEA (Community)": "JetBrains.IntelliJIDEA.Community",
+        "Eclipse IDE": "EclipseFoundation.EclipseIDE",
+        "Sublime Text": "SublimeHQ.SublimeText.4",
+        "Wireshark": "WiresharkFoundation.Wireshark",
+        "VirtualBox": "Oracle.VirtualBox",
+        "VMware Workstation Player": "VMware.WorkstationPlayer",
+        "XAMPP": "ApacheFriends.Xampp.8.2"
+    },
+    "Bancos de Dados": {
         "DBeaver": "dbeaver.dbeaver",
-        "Postman": "Postman.Postman"
+        "MySQL Server": "Oracle.MySQL",
+        "PostgreSQL": "PostgreSQL.PostgreSQL",
+        "pgAdmin": "PostgreSQL.pgAdmin",
+        "SQL Server 2022 Express": "Microsoft.SQLServer.2022.Express",
+        "MongoDB Server": "MongoDB.Server",
+        "RedisInsight (GUI)": "Redis.RedisInsight"
+    },
+    "Java / Runtime": {
+        "Java JRE 21 (Uso Geral)": "EclipseAdoptium.Temurin.21.JRE",
+        "Java JDK 21 (Desenvolvimento)": "EclipseAdoptium.Temurin.21.JDK",
+        "Java JRE 8 (Legado)": "EclipseAdoptium.Temurin.8.JRE",
     },
     "Design / Mídia": {
         "K-Lite Codec Pack": "CodecGuide.K-LiteCodecPack.Standard",
@@ -58,7 +80,8 @@ PROFILES = {
         "Google.Chrome", "Microsoft.VisualStudioCode", "OpenJS.NodeJS",
         "Python.Python.3.12", "Git.Git", "Docker.DockerDesktop",
         "dbeaver.dbeaver", "Postman.Postman", "Discord.Discord",
-        "Notepad++.Notepad++", "RARLab.WinRAR", "ShareX.ShareX"
+        "Notepad++.Notepad++", "RARLab.WinRAR", "ShareX.ShareX",
+        "EclipseAdoptium.Temurin.21.JDK",
     ],
 }
 

@@ -103,10 +103,13 @@ class GenericWorker:
                 uninstall_multiple(self.tasks.get("app_list", []), self._log_and_status)
             
             elif task_type == "power":
-                set_high_performance(self._log_and_status)
+                self._log_and_status("⚡ Configurando Alto Desempenho...")
+                set_high_performance()
+                self._log_and_status("✅ Plano ativado")
             
             elif task_type == "hostname":
-                set_hostname(self.tasks.get("name", ""), self._log_and_status)
+                self._log_and_status(f"🏷️ Renomeando para {self.tasks['name']}...")
+                set_hostname(self.tasks["name"], self._log_and_status)
             
             elif task_type == "wallpaper":
                 set_wallpaper(self.tasks.get("path", ""), self._log_and_status)
@@ -120,16 +123,24 @@ class GenericWorker:
                     disable_startup_item(item, self._log_and_status)
             
             elif task_type == "report":
+                self._log_and_status("📄 Gerando relatório...")
                 path = generate_report()
-                self._log_and_status(f"📄 Relatório salvo em: {path}")
-                import os
-                os.startfile(path)
+                if path:
+                    self._log_and_status(f"✅ Relatório: {path}")
+                    import os
+                    os.startfile(path)
+                else:
+                    self._log_and_status("❌ Erro ao gerar.")
+                    
+            elif task_type == "custom":
+                func = self.tasks.get("func")
+                if func:
+                    func(self._log_and_status)
                     
             self._log_and_status("Operação concluída com sucesso!")
             time.sleep(1)
         except Exception as e:
-            self._log_and_status(f"❌ Erro: {str(e)}")
-            time.sleep(3)
+            self._log_and_status(f"❌ Erro crítico: {str(e)}")
         finally:
             if self.completion_callback:
                 self.completion_callback()
