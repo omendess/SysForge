@@ -1,4 +1,13 @@
 import sys
+if sys.stdout is None:
+    class Dummy:
+        def write(self, *a):
+            pass
+        def flush(self):
+            pass
+    sys.stdout = Dummy()
+    sys.stderr = Dummy()
+import sys
 import os
 
 try:
