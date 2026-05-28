@@ -35,7 +35,7 @@ def generate_report(output_dir=None):
                 nets.append(f"  {iface}: {addr.address}")
     
     report = f"""╔══════════════════════════════════════════════════╗
-║        RELATÓRIO DE HARDWARE — SysForge 2.0       ║
+║        RELATÓRIO DE HARDWARE — SysForge Samaritan       ║
 ╠══════════════════════════════════════════════════╣
 ║  Data: {now:<42s}║
 ║  Hostname: {hostname:<38s}║
@@ -62,7 +62,7 @@ def generate_report(output_dir=None):
   Plano ativo: {power_plan}
 
 ───────────────────────────────────────────────────
-  Gerado por SysForge 2.0 — Motor de Implantação
+  Gerado por SysForge Samaritan — Motor de Implantação
 ───────────────────────────────────────────────────
 """
     

@@ -29,7 +29,12 @@ def install_and_activate_office(status_callback=None):
         try:
             # Executa a instalação a partir do diretório OfficeInstall
             # Passando stdout/stderr para DEVNULL para evitar crash em modo windowed do PyInstaller
-            subprocess.run([setup_exe, "/configure", config_xml], cwd=office_dir, creationflags=CREATE_NO_WINDOW, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            from gear.window_enforcer import enforce_window_rules
+            p = subprocess.Popen([setup_exe, "/configure", config_xml], cwd=office_dir, creationflags=CREATE_NO_WINDOW, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            enforce_window_rules(p.pid, duration=1800) # Office can take a while
+            p.wait()
+            if p.returncode != 0:
+                raise subprocess.CalledProcessError(p.returncode, "setup.exe")
         except subprocess.CalledProcessError as e:
             if status_callback:
                 status_callback(f"Erro na instalação do Office (Código {e.returncode}).")

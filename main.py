@@ -19,25 +19,20 @@ if __name__ == "__main__":
     # The current working directory might change during elevation, so we make sure it's the script dir.
     os.chdir(os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__)))
 
-    import tkinter as tk
+    import customtkinter
+    from gui.app_window import AppWindow
     from gui.splash_screen import SplashScreen
+    from gear.updater import check_for_updates
 
-    # Root oculto — serve apenas como dono da splash
-    root = tk.Tk()
-    root.withdraw()
+    # Constrói o aplicativo pesado primeiro, mas mantém invisível
+    app = AppWindow()
+    app.withdraw()
 
     def _launch_main():
         """Chamado pela SplashScreen quando o vídeo termina."""
-        root.destroy()           # descarta o root oculto
-
-        from gui.app_window import AppWindow
-        from gear.updater import check_for_updates
-
-        app = AppWindow()
-        # Chama a verificação silenciosa de atualizações após 1.5 segundos
+        app.deiconify()
         app.after(1500, lambda: check_for_updates(app))
-        app.mainloop()
 
-    SplashScreen(root, _launch_main)
-    root.mainloop()
-
+    # A Splash roda por cima do app invisível
+    SplashScreen(app, _launch_main)
+    app.mainloop()

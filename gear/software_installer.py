@@ -102,7 +102,13 @@ def install_software(winget_id, status_callback=None):
         "--silent"
     ]
     try:
-        subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, check=True, timeout=300)
+        from gear.window_enforcer import enforce_window_rules
+        p = subprocess.Popen(cmd, creationflags=CREATE_NO_WINDOW)
+        enforce_window_rules(p.pid, duration=300)
+        p.wait(timeout=300)
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(p.returncode, cmd)
+            
         if status_callback:
             status_callback(f"✅ {winget_id} instalado com sucesso.")
     except subprocess.TimeoutExpired:

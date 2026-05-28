@@ -1,5 +1,5 @@
 {
-  "version": "2.1.2",
-  "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
-  "changelog": "- Corrigido sistema de extração de Keys e status do Windows.\n- Corrigida detecção do Windows Defender no Scanner."
+    "version": "2.5.0",
+    "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
+    "changelog": "- Corrigido sistema de extra\u00e7\u00e3o de Keys e status do Windows.\n- Corrigida detec\u00e7\u00e3o do Windows Defender no Scanner."
 }
