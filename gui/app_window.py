@@ -38,7 +38,7 @@ class AppWindow(ctk.CTk):
         super().__init__()
         ctk.set_appearance_mode("Light")
         from gear.updater import CURRENT_VERSION
-        self.title(f"SysForge {CURRENT_VERSION} — Motor de Implantação")
+        self.title(f"SYSFORGE v{CURRENT_VERSION} - Motor de Implantação TI (Samaritan Protocol)")
         
         # Centralizar na tela
         w, h = 1280, 720
@@ -81,6 +81,7 @@ class AppWindow(ctk.CTk):
     def _build_sidebar(self):
         sb = ctk.CTkFrame(self, width=230, corner_radius=0, fg_color=BG_SIDEBAR, border_width=0)
         sb.grid(row=0, column=0, sticky="nsew")
+        sb.grid_columnconfigure(0, weight=1)
         sb.grid_rowconfigure(11, weight=1)
         self.sidebar = sb
 
@@ -88,7 +89,7 @@ class AppWindow(ctk.CTk):
         sb_sep.place(relx=1, rely=0, relheight=1, anchor="ne")
 
         # Logo
-        ctk.CTkLabel(sb, text="SYSFORGE", font=("Helvetica", 26, "bold"), text_color="#000000").grid(row=0, column=0, padx=24, pady=(28, 4), sticky="w")
+        ctk.CTkLabel(sb, text="M LABS", font=("Helvetica", 26, "bold"), text_color="#D50000").grid(row=0, column=0, padx=24, pady=(28, 4), sticky="w")
         ctk.CTkLabel(sb, text="MOTOR DE IMPLANTAÇÃO", font=("Consolas", 11), text_color="#000000").grid(row=1, column=0, padx=26, pady=(0, 12), sticky="w")
 
         # Separator
@@ -96,17 +97,87 @@ class AppWindow(ctk.CTk):
         sep.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
 
         self.nav_btns = {}
-        items = [("DASHBOARD","dashboard",3),("OPERAÇÕES","operations",4),("SOFTWARES","softwares",5),("TWEAKS","tweaks",6),("APP MANAGER","app_manager",7),("STARTUP","startup",8),("REPARO & SCANNER","repair",9),("LOGS","logs",10),("INFO", "info", 11)]
+        self.nav_frames = {}
+        self.nav_indicators = {}
+
+        items = [
+            ("💻  DASHBOARD",        "dashboard",  3),
+            ("⚙️  OPERAÇÕES",        "operations", 4),
+            ("📦  SOFTWARES",        "softwares",  5),
+            ("🛠️  TWEAKS WINDOWS",   "tweaks",     6),
+            ("🗑️  APP MANAGER",      "app_manager",7),
+            ("🚀  STARTUP",          "startup",    8),
+            ("🛡️  REPARO & SCANNER", "repair",     9),
+            ("📋  LOGS",             "logs",       10),
+            ("ℹ️  INFO",             "info",       11),
+        ]
+
         for text, key, row in items:
-            b = ctk.CTkButton(sb, text=text, anchor="w", corner_radius=0, height=42, fg_color="transparent", text_color="#000000", hover_color="#E0E0E0", font=("Helvetica", 14, "bold"), command=lambda k=key: self.select_view(k))
-            b.grid(row=row, column=0, padx=14, pady=5, sticky="ew")
+            container = ctk.CTkFrame(sb, fg_color="#FFFFFF", border_width=1, border_color="#000000", corner_radius=0, height=42)
+            container.grid(row=row, column=0, padx=14, pady=5, sticky="ew")
+            container.pack_propagate(False)
+
+            indicator = ctk.CTkFrame(container, width=4, fg_color="transparent", corner_radius=0)
+            indicator.pack(side="left", fill="y")
+
+            b = ctk.CTkButton(
+                container, text=f"  {text}", anchor="w", corner_radius=0, height=42,
+                fg_color="transparent", text_color="#000000", hover_color="#000000",
+                font=("Helvetica", 13, "bold"),
+                command=lambda k=key: self.select_view(k)
+            )
+            b.pack(side="left", fill="both", expand=True)
+
             self.nav_btns[key] = b
+            self.nav_frames[key] = container
+            self.nav_indicators[key] = indicator
+
+            def make_on_enter(k, btn, cont, ind):
+                def on_enter(e):
+                    if getattr(self, "_current_view", None) != k:
+                        cont.configure(fg_color="#000000")
+                        btn.configure(text_color="#FFFFFF")
+                        ind.configure(fg_color="#D50000")
+                return on_enter
+
+            def make_on_leave(k, btn, cont, ind):
+                def on_leave(e):
+                    if getattr(self, "_current_view", None) != k:
+                        cont.configure(fg_color="#FFFFFF")
+                        btn.configure(text_color="#000000")
+                        ind.configure(fg_color="transparent")
+                return on_leave
+
+            b.bind("<Enter>", make_on_enter(key, b, container, indicator))
+            b.bind("<Leave>", make_on_leave(key, b, container, indicator))
 
         # Footer badge
         from gear.updater import CURRENT_VERSION
         badge = ctk.CTkFrame(sb, fg_color="transparent", border_width=1, border_color="#000000", corner_radius=0)
         badge.grid(row=12, column=0, padx=14, pady=(0, 20), sticky="ew")
         ctk.CTkLabel(badge, text=f"v{CURRENT_VERSION} · WINDOWS 11", font=("Consolas", 11), text_color="#000000").pack(pady=8)
+
+    def _action_btn(self, parent, text, command, height=30):
+        container = ctk.CTkFrame(parent, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF")
+        indicator = ctk.CTkFrame(container, width=4, height=height, fg_color="transparent", corner_radius=0)
+        indicator.pack(side="left")
+        b = ctk.CTkButton(
+            container, text=text, anchor="c", corner_radius=0, height=height, width=10,
+            fg_color="transparent", text_color="#000000", hover_color="#000000",
+            font=("Helvetica", 11, "bold"), command=command
+        )
+        b.pack(side="left", fill="both", expand=True, padx=(2, 6))
+        def on_enter(e):
+            container.configure(fg_color="#000000")
+            b.configure(text_color="#FFFFFF")
+            indicator.configure(fg_color="#D50000")
+        def on_leave(e):
+            container.configure(fg_color="#FFFFFF")
+            b.configure(text_color="#000000")
+            indicator.configure(fg_color="transparent")
+        b.bind("<Enter>", on_enter)
+        b.bind("<Leave>", on_leave)
+        return container
 
     # ─── Views Container ────────────────────────────────────
     def _build_views(self):
@@ -117,14 +188,19 @@ class AppWindow(ctk.CTk):
             builder(f)
 
     def select_view(self, name):
+        self._current_view = name
         for f in self.views.values():
             f.grid_forget()
         self.views[name].grid(row=0, column=1, sticky="nsew", padx=28, pady=28)
         for k, b in self.nav_btns.items():
             if k == name:
+                self.nav_frames[k].configure(fg_color="#000000", border_color="#000000")
+                self.nav_indicators[k].configure(fg_color="#D50000")
                 b.configure(fg_color="#000000", text_color="#FFFFFF", hover_color="#000000")
             else:
-                b.configure(fg_color="transparent", text_color="#000000", hover_color="#E0E0E0")
+                self.nav_frames[k].configure(fg_color="#FFFFFF", border_color="#000000")
+                self.nav_indicators[k].configure(fg_color="transparent")
+                b.configure(fg_color="transparent", text_color="#000000", hover_color="#000000")
         if name == "dashboard":
             self._start_hw_loop()
         elif name == "operations":
@@ -194,6 +270,7 @@ class AppWindow(ctk.CTk):
         _, self.txt_uptime = _make_text_card(1, 2, "TEMPO DE ATIVIDADE")
         _, self.txt_power = _make_text_card(1, 3, "ENERGIA & SAÚDE")
 
+        
         self.cpu_hist = [0]*30
         self.ram_hist = [0]*30
         self.net_hist = [0]*30
@@ -387,19 +464,19 @@ class AppWindow(ctk.CTk):
         ctk.CTkLabel(hc,text="HOSTNAME",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(10,6))
         self.hostname_entry = ctk.CTkEntry(hc,placeholder_text="NOME-PC",height=32,corner_radius=0,border_width=1,border_color="#000000",fg_color="#FFFFFF",text_color="#000000",font=("Consolas", 12))
         self.hostname_entry.pack(fill="x",padx=14,pady=(0,6))
-        ctk.CTkButton(hc,text="RENOMEAR",height=30,corner_radius=0,border_width=1,border_color="#000000",fg_color="#000000",text_color="#FFFFFF",hover_color="#333333",font=("Helvetica", 11, "bold"),command=self._set_hostname).pack(fill="x",padx=14,pady=(0,14))
+        self._action_btn(hc, "RENOMEAR", self._set_hostname).pack(fill="x",padx=14,pady=(0,14))
 
         # Report card
         rc = self._card(ug); rc.grid(row=0,column=1,padx=5,sticky="nsew")
         ctk.CTkLabel(rc,text="RELATÓRIO",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(10,6))
         ctk.CTkLabel(rc,text="Exportar specs\npara a Área de Trabalho",font=("Consolas", 11),text_color="#000000",justify="left").pack(anchor="w",padx=14,pady=(0,6))
-        ctk.CTkButton(rc,text="GERAR TXT",height=30,corner_radius=0,border_width=1,border_color="#000000",fg_color="#000000",text_color="#FFFFFF",hover_color="#333333",font=("Helvetica", 11, "bold"),command=self._gen_report).pack(fill="x",padx=14,pady=(0,14))
+        self._action_btn(rc, "GERAR TXT", self._gen_report).pack(fill="x",padx=14,pady=(0,14))
 
         # WinUpdate card
         wu = self._card(ug); wu.grid(row=0,column=2,padx=5,sticky="nsew")
         ctk.CTkLabel(wu,text="WINDOWS UPDATE",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(10,6))
         ctk.CTkLabel(wu,text="Forçar checagem\ne instalação",font=("Consolas", 11),text_color="#000000",justify="left").pack(anchor="w",padx=14,pady=(0,6))
-        self.btn_wupd = ctk.CTkButton(wu,text="ATUALIZAR",height=30,corner_radius=0,border_width=1,border_color="#000000",fg_color="#000000",hover_color="#333333",text_color="#FFFFFF",font=("Helvetica", 11, "bold"),command=self._run_wupdate)
+        self.btn_wupd = self._action_btn(wu, "ATUALIZAR", self._run_wupdate)
         self.btn_wupd.pack(fill="x",padx=14,pady=(0,14))
 
         # Power card
@@ -407,7 +484,7 @@ class AppWindow(ctk.CTk):
         ctk.CTkLabel(pc,text="ENERGIA",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(10,6))
         self.lbl_power = ctk.CTkLabel(pc,text="Carregando...",font=("Consolas", 11),text_color="#000000")
         self.lbl_power.pack(anchor="w",padx=14,pady=(0,6))
-        ctk.CTkButton(pc,text="ALTO DESEMPENHO",height=30,corner_radius=0,border_width=1,border_color="#000000",fg_color="#000000",text_color="#FFFFFF",hover_color="#333333",font=("Helvetica", 11, "bold"),command=self._set_power).pack(fill="x",padx=14,pady=(0,14))
+        self._action_btn(pc, "ALTO DESEMPENHO", self._set_power).pack(fill="x",padx=14,pady=(0,14))
 
         # Footer 
         ft = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -505,8 +582,12 @@ class AppWindow(ctk.CTk):
         GenericWorker({"type":"report"}, lambda m: self.after(0,lambda: self.lbl_dash_st.configure(text=m)), None).start()
 
     def _run_wupdate(self):
-        self.btn_wupd.configure(state="disabled")
-        GenericWorker({"type":"winupdate"}, lambda m: self.after(0,lambda: self.lbl_dash_st.configure(text=m)), lambda: self.after(0,lambda: self.btn_wupd.configure(state="normal"))).start()
+        def _inner_btn_cfg(container, **kw):
+            for w in container.winfo_children():
+                if isinstance(w, ctk.CTkButton): w.configure(**kw)
+        _inner_btn_cfg(self.btn_wupd, state="disabled")
+        GenericWorker({"type":"winupdate"}, lambda m: self.after(0,lambda: self.lbl_dash_st.configure(text=m)), lambda: self.after(0,lambda: _inner_btn_cfg(self.btn_wupd, state="normal"))).start()
+
 
     def _set_power(self):
         GenericWorker({"type":"power"}, lambda m: self.after(0,lambda: self.lbl_dash_st.configure(text=m)), lambda: self.after(0,lambda: self.lbl_power.configure(text="Atual: Alto Desempenho"))).start()
@@ -525,7 +606,7 @@ class AppWindow(ctk.CTk):
         prof_frame.pack(fill="x", pady=(0,10))
         ctk.CTkLabel(prof_frame,text="Perfis:",font=ctk.CTkFont(size=13,weight="bold"),text_color="#000000").pack(side="left",padx=(0,10))
         for pname, plist in PROFILES.items():
-            ctk.CTkButton(prof_frame,text=pname,height=32,corner_radius=0,fg_color="#FFFFFF",border_width=1,border_color="#000000",hover_color="#334155",font=ctk.CTkFont(size=12,weight="bold"),command=lambda pl=plist: self._apply_profile(pl)).pack(side="left",padx=4)
+            self._action_btn(prof_frame, pname, lambda pl=plist: self._apply_profile(pl), height=32).pack(side="left", padx=4)
         self.lbl_soft_count = ctk.CTkLabel(prof_frame,text="0 selecionados",font=("Consolas", 12),text_color="#000000")
         self.lbl_soft_count.pack(side="right",padx=10)
 
@@ -551,9 +632,12 @@ class AppWindow(ctk.CTk):
             # Select all per category
             all_var = ctk.BooleanVar(value=False)
             cat_vars = []
-            def make_toggle(cv, av):
+            cat_wids = []
+            def make_toggle(cv, cw, av):
                 def toggle():
-                    for v in cv: v.set(av.get())
+                    for v, w in zip(cv, cw):
+                        if self.software_checkboxes[w].cget("state") != "disabled":
+                            v.set(av.get())
                     self._update_soft_count()
                 return toggle
 
@@ -564,9 +648,10 @@ class AppWindow(ctk.CTk):
                 self.software_vars[wid] = v
                 self.software_checkboxes[wid] = cb
                 cat_vars.append(v)
+                cat_wids.append(wid)
 
             ctk.CTkFrame(card, height=1, fg_color=BORDER, corner_radius=0).pack(fill="x", padx=16, pady=(10,6))
-            ctk.CTkCheckBox(card, text="SELECIONAR TODOS", variable=all_var, font=("Consolas", 12), text_color="#000000", corner_radius=0, fg_color="#000000", border_color="#000000", checkmark_color="#FFFFFF", hover_color="#333333", command=make_toggle(cat_vars, all_var)).pack(anchor="w", padx=24, pady=(2,14))
+            ctk.CTkCheckBox(card, text="SELECIONAR TODOS", variable=all_var, font=("Consolas", 12), text_color="#000000", corner_radius=0, fg_color="#000000", border_color="#000000", checkmark_color="#FFFFFF", hover_color="#333333", command=make_toggle(cat_vars, cat_wids, all_var)).pack(anchor="w", padx=24, pady=(2,14))
 
             ci += 1
             if ci > 1: ci = 0; ri += 1
@@ -592,7 +677,8 @@ class AppWindow(ctk.CTk):
                 
                 if is_installed and wid in self.software_checkboxes:
                     def update_cb(w=wid, n=name):
-                        self.software_checkboxes[w].configure(text=f"{n}  ✅", text_color="#16A34A")
+                        self.software_checkboxes[w].configure(text=f"{n}  ✅", text_color="#16A34A", state="disabled")
+                        self.software_vars[w].set(False)
                     self.after(0, update_cb)
 
     def _run_soft(self):
@@ -697,9 +783,9 @@ class AppWindow(ctk.CTk):
         self.app_search_entry.pack(side="left", fill="x", expand=True, padx=(0,6))
 
         # Botões
-        ctk.CTkButton(search_frame, text="X", width=40, height=40, corner_radius=0, fg_color="transparent", border_width=1, border_color="#000000", hover_color="#E0E0E0", font=("Helvetica", 16, "bold"), text_color="#000000", command=lambda: self.app_search_var.set("")).pack(side="left", padx=(0,6))
+        self._action_btn(search_frame, "X", lambda: self.app_search_var.set(""), height=40).pack(side="left", padx=(0,6))
         ctk.CTkButton(search_frame, text="BLOATWARES", width=120, height=40, corner_radius=0, fg_color="#D50000", border_width=1, border_color="#000000", text_color="#FFFFFF", hover_color="#B71C1C", font=("Helvetica", 12, "bold"), command=self._select_bloatware).pack(side="left", padx=(0,6))
-        ctk.CTkButton(search_frame, text="RELOAD", width=40, height=40, corner_radius=0, fg_color="transparent", border_width=1, border_color="#000000", hover_color="#E0E0E0", text_color="#000000", font=("Helvetica", 12, "bold"), command=self._force_reload_apps).pack(side="left", padx=(0,6))
+        self._action_btn(search_frame, "RELOAD", self._force_reload_apps, height=40).pack(side="left", padx=(0,6))
 
         self.lbl_app_count = ctk.CTkLabel(search_frame, text="", font=("Consolas", 12), text_color="#000000")
         self.lbl_app_count.pack(side="right", padx=6)
@@ -833,8 +919,10 @@ class AppWindow(ctk.CTk):
 
     def _apply_profile(self, id_list):
         for wid, var in self.software_vars.items():
-            var.set(wid in id_list)
+            if self.software_checkboxes[wid].cget("state") != "disabled":
+                var.set(wid in id_list)
         self._update_soft_count()
+
 
     def _update_soft_count(self):
         n = sum(1 for v in self.software_vars.values() if v.get())
@@ -859,30 +947,35 @@ class AppWindow(ctk.CTk):
             ("Firewall", "wf.msc"),
         ]
         for name, cmd in tools:
-            ctk.CTkButton(tools_frame, text=name.upper(), height=30, corner_radius=0, fg_color="transparent",
-                          text_color="#000000", border_width=1, border_color="#000000", hover_color="#E0E0E0",
-                          font=("Helvetica", 11, "bold"),
-                          command=lambda c=cmd: self._open_as_admin(c)).pack(side="left", padx=(0, 6))
+            self._action_btn(tools_frame, name.upper(), lambda c=cmd: self._open_as_admin(c)).pack(side="left", padx=(0, 6))
 
         # Abas
         tab_bar = ctk.CTkFrame(view, fg_color="transparent")
         tab_bar.pack(fill="x", pady=(0, 10))
         self._startup_tab = ctk.StringVar(value="startup")
 
+        self._startup_tab_frames = {}
+        self._startup_tab_inds = {}
+        self._startup_tab_btns = {}
+
         def _tab_btn(text, key):
-            return ctk.CTkButton(
-                tab_bar, text=text.upper(), height=34, corner_radius=0,
-                font=("Helvetica", 13, "bold"),
-                fg_color="#000000" if self._startup_tab.get() == key else "transparent",
-                text_color="#FFFFFF" if self._startup_tab.get() == key else "#000000",
-                hover_color="#E0E0E0", border_width=1, border_color="#000000",
+            f = ctk.CTkFrame(tab_bar, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF")
+            ind = ctk.CTkFrame(f, width=4, height=34, fg_color="transparent", corner_radius=0)
+            ind.pack(side="left")
+            b = ctk.CTkButton(
+                f, text=text.upper(), height=34, width=10, corner_radius=0,
+                font=("Helvetica", 11, "bold"), anchor="c",
+                fg_color="transparent", text_color="#000000", hover_color="#E0E0E0",
                 command=lambda k=key: self._switch_startup_tab(k)
             )
+            b.pack(side="left", fill="both", expand=True, padx=(2, 6))
+            self._startup_tab_frames[key] = f
+            self._startup_tab_inds[key] = ind
+            self._startup_tab_btns[key] = b
+            return f
 
-        self._tab_btn_startup = _tab_btn("🚀 Inicialização", "startup")
-        self._tab_btn_startup.pack(side="left", padx=(0, 6))
-        self._tab_btn_tasks   = _tab_btn("📆 Tarefas Agendadas", "tasks")
-        self._tab_btn_tasks.pack(side="left", padx=(0, 6))
+        _tab_btn("🚀 Inicialização", "startup").pack(side="left", padx=(0, 6))
+        _tab_btn("📆 Tarefas Agendadas", "tasks").pack(side="left", padx=(0, 6))
 
         # Busca
         self._startup_search = ctk.StringVar()
@@ -903,6 +996,9 @@ class AppWindow(ctk.CTk):
         self.scroll_startup.pack(fill="both", expand=True)
         self.startup_data = []
         self.tasks_data   = []
+        
+        # Initialize default tab
+        self._switch_startup_tab("startup")
 
     def _open_as_admin(self, cmd):
         import ctypes
@@ -913,13 +1009,17 @@ class AppWindow(ctk.CTk):
 
     def _switch_startup_tab(self, key):
         self._startup_tab.set(key)
-        self._tab_btn_startup.configure(
-            fg_color="#000000" if key == "startup" else "transparent",
-            text_color="#FFFFFF" if key == "startup" else "#000000")
-        self._tab_btn_tasks.configure(
-            fg_color="#000000" if key == "tasks" else "transparent",
-            text_color="#FFFFFF" if key == "tasks" else "#000000")
+        for k, f in self._startup_tab_frames.items():
+            if k == key:
+                f.configure(fg_color="#000000")
+                self._startup_tab_inds[k].configure(fg_color="#D50000")
+                self._startup_tab_btns[k].configure(text_color="#FFFFFF", hover_color="#000000")
+            else:
+                f.configure(fg_color="#FFFFFF")
+                self._startup_tab_inds[k].configure(fg_color="transparent")
+                self._startup_tab_btns[k].configure(text_color="#000000", hover_color="#E0E0E0")
         self._filter_startup()
+
 
     def _load_startup(self):
         self.after(0, self._render_startup_loading)
@@ -1083,9 +1183,9 @@ class AppWindow(ctk.CTk):
 
         btn_frame = ctk.CTkFrame(view, fg_color="transparent")
         btn_frame.pack(fill="x", pady=(0, 10))
-        ctk.CTkButton(btn_frame, text="ATUALIZAR", height=32, corner_radius=0, fg_color="transparent", text_color="#000000", border_width=1, border_color="#000000", hover_color="#E0E0E0", font=("Helvetica", 12, "bold"), command=self._refresh_logs).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(btn_frame, text="EXPORTAR TXT", height=32, corner_radius=0, fg_color="transparent", text_color="#000000", border_width=1, border_color="#000000", hover_color="#E0E0E0", font=("Helvetica", 12, "bold"), command=self._export_logs).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(btn_frame, text="LIMPAR", height=32, corner_radius=0, fg_color="transparent", text_color="#000000", border_width=1, border_color="#000000", hover_color="#E0E0E0", font=("Helvetica", 12, "bold"), command=self._clear_logs).pack(side="left")
+        self._action_btn(btn_frame, "ATUALIZAR", self._refresh_logs, height=32).pack(side="left", padx=(0, 8))
+        self._action_btn(btn_frame, "EXPORTAR TXT", self._export_logs, height=32).pack(side="left", padx=(0, 8))
+        self._action_btn(btn_frame, "LIMPAR", self._clear_logs, height=32).pack(side="left")
 
         self.log_textbox = ctk.CTkTextbox(view, fg_color="#FFFFFF", corner_radius=0, border_width=1, border_color="#000000", font=ctk.CTkFont(family="Consolas", size=13), text_color="#000000", state="disabled")
         self.log_textbox.pack(fill="both", expand=True)
@@ -1172,12 +1272,7 @@ class AppWindow(ctk.CTk):
             ctk.CTkLabel(meta_row, text=value, font=("Helvetica", 11, "bold"),
                          text_color="#000000", anchor="w").pack(side="left")
 
-        ctk.CTkButton(right_col, text="VERIFICAR ATUALIZAÇÕES", height=30,
-                      font=("Helvetica", 11, "bold"),
-                      fg_color="#000000", border_width=0, border_color="#000000",
-                      text_color="#FFFFFF", hover_color="#333333", corner_radius=0,
-                      command=lambda: check_for_updates(self, manual=True)
-                      ).pack(anchor="w", pady=(10, 0))
+        self._action_btn(right_col, "VERIFICAR ATUALIZAÇÕES", lambda: check_for_updates(self, manual=True), height=30).pack(anchor="w", pady=(10, 0))
 
         # ── Diagnóstico de Sistema ────────────────────────────────────────
         diag_card = self._card(scroll)
@@ -1188,13 +1283,12 @@ class AppWindow(ctk.CTk):
         ctk.CTkLabel(diag_header, text="🔬 Diagnóstico Completo",
                      font=("Helvetica", 16, "bold"), text_color="#D50000").pack(side="left")
 
-        self.btn_refresh_diag = ctk.CTkButton(
-            diag_header, text="ANALISAR", width=100, height=28,
-            font=("Helvetica", 11, "bold"),
-            fg_color="#000000", border_width=0, text_color="#FFFFFF", hover_color="#333333", corner_radius=0,
-            command=self._load_diagnostics
+        _diag_btn_container = self._action_btn(
+            diag_header, "ANALISAR", self._load_diagnostics, height=28
         )
-        self.btn_refresh_diag.pack(side="right")
+        _diag_btn_container.pack(side="right")
+        self._diag_btn_container = _diag_btn_container
+
 
         # Container para colunas
         diag_body = ctk.CTkFrame(diag_card, fg_color="transparent")
@@ -1230,7 +1324,11 @@ class AppWindow(ctk.CTk):
         threading.Thread(target=self._load_diagnostics, daemon=True).start()
 
     def _load_diagnostics(self):
-        self.after(0, lambda: self.btn_refresh_diag.configure(state="disabled", text="⏳ Aguarde..."))
+        def _set_state(state, txt):
+            for w in self._diag_btn_container.winfo_children():
+                if isinstance(w, ctk.CTkButton):
+                    w.configure(state=state, text=txt)
+        self.after(0, lambda: _set_state("disabled", "⏳ Aguarde..."))
 
         def _clear(f):
             for w in f.winfo_children(): w.destroy()
@@ -1315,5 +1413,9 @@ class AppWindow(ctk.CTk):
             dev_lines = [("⚠️ Nenhuma ferramenta detectada", AMBER)]
         _lines(self._diag_dev, dev_lines)
 
-        self.btn_refresh_diag.configure(state="normal", text="ANALISAR")
+        def _set_state(state, txt):
+            for w in self._diag_btn_container.winfo_children():
+                if isinstance(w, ctk.CTkButton):
+                    w.configure(state=state, text=txt)
+        _set_state("normal", "ANALISAR")
 

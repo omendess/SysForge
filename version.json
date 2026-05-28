@@ -1,5 +1,5 @@
 {
-    "version": "2.5.1",
+    "version": "2.6.0",
     "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
-    "changelog": "- Corrigido sistema de extra\u00e7\u00e3o de Keys e status do Windows.\n- Corrigida detec\u00e7\u00e3o do Windows Defender no Scanner."
+    "changelog": "- Protocolo Samaritan: sidebar e botoes unificados com indicador vermelho e hover preto.\n- Bloqueio de reinstalacao de softwares ja instalados no App Manager.\n- Botoes de acao padronizados em todo o sistema.\n- Limpeza geral do projeto e correcoes de estabilidade."
 }

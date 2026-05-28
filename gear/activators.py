@@ -41,7 +41,7 @@ def capture_product_keys(status_callback=None):
         
     # 2. Obter chave do Windows via Registro (Retail Key) via PowerShell
     decode_ps = """
-    $path = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    $path = r'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
     try {
         $id = (Get-ItemProperty $path).DigitalProductId[52..66]
         $chars = 'BCDFGHJKMPQRTVWXY2346789'

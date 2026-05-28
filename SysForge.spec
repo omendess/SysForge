@@ -1,11 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('gui/media', 'gui/media'), ('icon.ico', '.'), ('OfficeInstall', 'OfficeInstall')],
+    datas=[
+        ('gui/Media', 'gui/Media'),
+        ('icon.ico', '.'),
+        ('OfficeInstall', 'OfficeInstall'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
