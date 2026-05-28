@@ -1,5 +1,5 @@
 {
-    "version": "2.6.1.1",
+    "version": "2.6.1.2",
     "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
-    "changelog": "- Versão de teste para validação do novo sistema de Auto-Update (Rename-Item sem vazamento de memoria do PyInstaller)."
+    "changelog": "- Versão 2.6.1.2: Purge definitivo do PyInstaller via PowerShell [Environment]."
 }

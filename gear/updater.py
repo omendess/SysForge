@@ -15,7 +15,7 @@ import urllib.request
 import json
 import zipfile
 
-CURRENT_VERSION = "2.6.1.1"
+CURRENT_VERSION = "2.6.1.2"
 
 # Exemplo de URL. Para funcionar, crie um arquivo version.json no repositório do GitHub e substitua essa URL pela URL *RAW* do arquivo.
 # O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/omendess/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}
@@ -120,6 +120,11 @@ def _start_update_process(download_url, root_window):
         
         Rename-Item -Path '{exe_path}' -NewName '{os.path.basename(old_exe)}' -Force -ErrorAction SilentlyContinue
         Invoke-WebRequest -Uri '{download_url}' -OutFile '{exe_path}'
+        
+        # Purge PyInstaller environment leaks before starting new process
+        [Environment]::SetEnvironmentVariable('_MEIPASS2', $null, 'Process')
+        [Environment]::SetEnvironmentVariable('_MEIPASS', $null, 'Process')
+        
         Start-Process -FilePath '{exe_path}'
         Remove-Item -Path '{ps_script}' -Force
         """
@@ -128,14 +133,9 @@ def _start_update_process(download_url, root_window):
             with open(ps_script, "w", encoding="utf-8") as f:
                 f.write(ps_code)
                 
-            clean_env = os.environ.copy()
-            clean_env.pop("_MEIPASS2", None)
-            clean_env.pop("_MEIPASS", None)
-                
             subprocess.Popen(
                 ["powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", ps_script],
-                creationflags=0x08000000,
-                env=clean_env
+                creationflags=0x08000000
             )
             os._exit(0)
         except Exception as e:
