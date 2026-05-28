@@ -38,8 +38,15 @@ class AppWindow(ctk.CTk):
         super().__init__()
         from gear.updater import CURRENT_VERSION
         self.title(f"SysForge {CURRENT_VERSION} — Motor de Implantação")
-        self.geometry("1200x820")
         self.minsize(1000, 700)
+        
+        # Centralizar na tela
+        w, h = 1200, 820
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
         
         try:
             import sys
@@ -892,6 +899,15 @@ class AppWindow(ctk.CTk):
         
         _action_btn(card_bkp, "Criar Ponto de Restauração Forçado", lambda: _run_task(force_restore_point), GREEN, "#16A34A").pack(fill="x", padx=20, pady=(6, 20))
 
+        card_lic = self._card(col_right)
+        card_lic.pack(fill="x", pady=(0, 20))
+        ctk.CTkLabel(card_lic, text="🔑 Licenças e Ativação", font=ctk.CTkFont(size=16, weight="bold"), text_color="white").pack(anchor="w", padx=20, pady=(20, 10))
+        ctk.CTkFrame(card_lic, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=4)
+        
+        from gear.activators import activate_windows, capture_product_keys
+        _action_btn(card_lic, "Ativar Windows (HWID Digital)", lambda: _run_task(activate_windows), ACCENT, ACCENT_HVR).pack(fill="x", padx=20, pady=6)
+        _action_btn(card_lic, "Backup de Product Keys", lambda: _run_task(capture_product_keys), AMBER, "#D97706").pack(fill="x", padx=20, pady=(6, 20))
+
         card_scan = self._card(col_right)
         card_scan.pack(fill="x", pady=(0, 20))
         ctk.CTkLabel(card_scan, text="📡 Scanner de Dispositivos", font=ctk.CTkFont(size=16, weight="bold"), text_color="white").pack(anchor="w", padx=20, pady=(20, 10))
@@ -1012,6 +1028,7 @@ class AppWindow(ctk.CTk):
 
         for icon, label, value in [
             ("👤", "Autor",      "M labs"),
+            ("📧", "Contato",    "o_mendes@outlook.com.br"),
             ("📅", "Lançamento", "Maio 2026"),
             ("🖥️", "Plataforma", "Windows 10 / 11"),
         ]:

@@ -189,6 +189,29 @@ def toggle_taskbar_chat(enable, cb=None):
             "TaskbarMn", "REG_DWORD", val, cb, desc)
 
 # ═══════════════════════════════════════════════════════════
+#  OTIMIZAÇÃO DE DNS
+# ═══════════════════════════════════════════════════════════
+def toggle_fast_dns(enable, cb=None):
+    """enable=True → Define Cloudflare DNS. enable=False → DHCP."""
+    desc = "DNS Cloudflare Ativado" if enable else "DNS restaurado para DHCP Automático"
+    try:
+        cmd_if = ["powershell", "-NoProfile", "-Command", "(Get-NetAdapter | Where-Object Status -eq 'Up')[0].Name"]
+        res = subprocess.run(cmd_if, creationflags=CREATE_NO_WINDOW, capture_output=True, text=True)
+        iface = res.stdout.strip()
+        if iface:
+            if enable:
+                subprocess.run(["netsh", "interface", "ipv4", "set", "dnsservers", f'name="{iface}"', "static", "1.1.1.1", "primary"], creationflags=CREATE_NO_WINDOW)
+                subprocess.run(["netsh", "interface", "ipv4", "add", "dnsservers", f'name="{iface}"', "1.0.0.1", "index=2"], creationflags=CREATE_NO_WINDOW)
+            else:
+                subprocess.run(["netsh", "interface", "ipv4", "set", "dnsservers", f'name="{iface}"', "dhcp"], creationflags=CREATE_NO_WINDOW)
+            subprocess.run(["ipconfig", "/flushdns"], creationflags=CREATE_NO_WINDOW)
+            if cb: cb(f"✅ {desc}")
+        else:
+            if cb: cb("⚠️ Nenhuma interface de rede ativa encontrada para alterar o DNS.")
+    except Exception as e:
+        if cb: cb(f"❌ DNS — Erro: {str(e)}")
+
+# ═══════════════════════════════════════════════════════════
 #  DISPATCHER PRINCIPAL
 # ═══════════════════════════════════════════════════════════
 TWEAKS_MAP = {
@@ -201,6 +224,7 @@ TWEAKS_MAP = {
     "disable_lock_screen":      ("Desativar Tela de Bloqueio", toggle_lock_screen),
     "disable_sticky_keys":      ("Desativar Teclas de Aderência", toggle_sticky_keys),
     "hide_taskbar_chat":        ("Ocultar Chat na Barra",      toggle_taskbar_chat),
+    "optimize_dns":             ("Otimizar DNS (Cloudflare)",  toggle_fast_dns),
 }
 
 def apply_selected_tweaks(tasks_dict, status_callback=None):
@@ -269,5 +293,6 @@ def get_current_tweak_states():
         "disable_lock_screen":    check_reg(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\Personalization", "NoLockScreen", 1),
         "disable_sticky_keys":    check_reg(winreg.HKEY_CURRENT_USER,  r"Control Panel\Accessibility\StickyKeys", "Flags", "506"),
         "hide_taskbar_chat":      check_reg(winreg.HKEY_CURRENT_USER,  r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "TaskbarMn", 0),
+        "optimize_dns":           False,   # Sem checagem complexa de DNS
     }
     return states

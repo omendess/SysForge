@@ -55,63 +55,87 @@ def get_windows_info():
 #  ATIVAÇÃO DO WINDOWS
 # ═══════════════════════════════════════════════════════════
 def get_windows_activation():
-    slmgr = r"C:\Windows\System32\slmgr.vbs"
-    out = _run(["cscript", "//NoLogo", slmgr, "/dstatus"], timeout=20)
-    if "---LICENSED---" in out or "License Status: Licensed" in out:
-        status = "✅ Ativado"
-    elif "OOB_GRACE" in out or "Out-of-Box" in out:
-        status = "⏳ Período de graça (OOBE)"
-    elif "NON_GENUINE" in out or "NOTIFICATION" in out:
-        status = "❌ Não genuíno"
-    elif "UNLICENSED" in out:
-        status = "❌ Sem licença"
-    else:
-        status = "⚠️ Não verificado"
-
-    # Tipo de licença
+    # Usa PowerShell WMI para ser imune a idiomas (pt-BR, en-US)
+    cmd = ["powershell", "-NoProfile", "-Command", 
+           "Get-WmiObject -query 'select LicenseStatus, Description from SoftwareLicensingProduct where LicenseStatus = 1 and PartialProductKey is not null' | Select-Object LicenseStatus, Description | ConvertTo-Json"]
+    out = _run(cmd, timeout=15)
+    
+    status = "⚠️ Não verificado"
     lic_type = "—"
-    for line in out.splitlines():
-        if "License Type" in line or "Tipo de Licença" in line:
-            lic_type = line.split(":", 1)[-1].strip()
-            break
-    if not lic_type or lic_type == "—":
-        if "OEM" in out:     lic_type = "OEM"
-        elif "Retail" in out: lic_type = "Retail"
-        elif "Volume" in out: lic_type = "Volume"
-        elif "Digital" in out: lic_type = "Digital"
+    
+    try:
+        if out.strip():
+            data = json.loads(out)
+            if isinstance(data, list):
+                data = data[0]
+                
+            if data.get("LicenseStatus") == 1:
+                status = "✅ Ativado"
+                
+            desc = data.get("Description", "").upper()
+            if "VOLUME" in desc: lic_type = "Volume"
+            elif "RETAIL" in desc: lic_type = "Retail"
+            elif "OEM" in desc: lic_type = "OEM"
+            elif "TIMEBASED" in desc: lic_type = "KMS"
+    except:
+        pass
+        
+    # Fallback para slmgr caso WMI falhe
+    if status == "⚠️ Não verificado":
+        slmgr = r"C:\Windows\System32\slmgr.vbs"
+        out_sl = _run(["cscript", "//NoLogo", slmgr, "/dstatus"], timeout=20)
+        out_sl_lower = out_sl.lower()
+        if "licensed" in out_sl_lower or "licenciado" in out_sl_lower:
+            status = "✅ Ativado"
+        elif "grace" in out_sl_lower or "graça" in out_sl_lower:
+            status = "⏳ Período de graça"
+            
+        if "oem" in out_sl_lower: lic_type = "OEM"
+        elif "retail" in out_sl_lower: lic_type = "Retail"
+        elif "volume" in out_sl_lower: lic_type = "Volume"
 
     return {"status": status, "type": lic_type}
 
 
 # ═══════════════════════════════════════════════════════════
-#  ANTIVÍRUS (SecurityCenter2)
+#  ANTIVÍRUS (SecurityCenter2 e Defender Fallback)
 # ═══════════════════════════════════════════════════════════
 def get_antivirus_info():
-    out = _run(["wmic", "/namespace:\\\\root\\SecurityCenter2", "Path",
-                "AntiVirusProduct", "get", "displayName,productState", "/value"])
     results = []
-    current = {}
-    for line in out.splitlines():
-        line = line.strip()
-        if "=" in line:
-            k, v = line.split("=", 1)
-            current[k.strip()] = v.strip()
-        elif not line and current:
-            if "displayName" in current:
-                name  = current.get("displayName", "Desconhecido")
-                state = current.get("productState", "0")
-                # productState bit 12-19 = 397xxx → enabled, 266xxx → disabled
+    # 1. Tentar ler todos os AVs registrados no WMI (Pode falhar no Win 11 para o Defender nativo)
+    out = _run(["powershell", "-NoProfile", "-Command", 
+                "Get-WmiObject -Namespace root\\SecurityCenter2 -Class AntiVirusProduct | Select-Object displayName, productState | ConvertTo-Json"], timeout=10)
+    try:
+        if out.strip():
+            data = json.loads(out)
+            if isinstance(data, dict): data = [data]
+            for item in data:
+                if not item: continue
+                name = item.get("displayName", "Desconhecido")
+                state = item.get("productState", 0)
                 try:
                     enabled = (int(state) & 0x1000) != 0
-                    updated = (int(state) & 0x10)   == 0
+                    updated = (int(state) & 0x10) == 0
                 except ValueError:
                     enabled, updated = False, False
-                results.append({
-                    "name":    name,
-                    "enabled": enabled,
-                    "updated": updated,
-                })
-            current = {}
+                results.append({"name": name, "enabled": enabled, "updated": updated})
+    except:
+        pass
+
+    # 2. Se a lista estiver vazia, verifica o Defender diretamente
+    if not results:
+        def_out = _run(["powershell", "-NoProfile", "-Command", 
+                        "Get-MpComputerStatus | Select-Object AMServiceEnabled, AntivirusSignatureAge | ConvertTo-Json"], timeout=10)
+        try:
+            if def_out.strip():
+                d_data = json.loads(def_out)
+                enabled = d_data.get("AMServiceEnabled", False)
+                age = d_data.get("AntivirusSignatureAge", 99)
+                updated = age < 7 # Assumimos atualizado se a assinatura tiver menos de 7 dias
+                results.append({"name": "Windows Defender", "enabled": enabled, "updated": updated})
+        except:
+            pass
+
     return results if results else [{"name": "Nenhum detectado", "enabled": False, "updated": False}]
 
 

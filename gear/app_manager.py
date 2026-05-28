@@ -1,9 +1,29 @@
 import winreg
 import os
 import subprocess
+import json
 
 CREATE_NO_WINDOW = 0x08000000
 BLOATWARES = ["mcafee", "candy crush", "tiktok", "disney", "netflix", "spotify", "norton", "avast"]
+APPX_BLOATWARES = ["Microsoft.BingNews", "Microsoft.GetHelp", "Microsoft.Getstarted", "Microsoft.Messaging", 
+                   "Microsoft.Microsoft3DViewer", "Microsoft.MicrosoftSolitaireCollection", "Microsoft.NetworkSpeedTest", 
+                   "Microsoft.News", "Microsoft.Office.OneNote", "Microsoft.Office.Sway", "Microsoft.Print3D", 
+                   "Microsoft.SkypeApp", "Microsoft.Todos", "Microsoft.WindowsAlarms", "Microsoft.WindowsFeedbackHub", 
+                   "Microsoft.WindowsMaps", "Microsoft.WindowsSoundRecorder", "Microsoft.XboxApp", 
+                   "Microsoft.XboxGamingOverlay", "Microsoft.ZuneVideo", "Microsoft.YourPhone"]
+
+def get_appx_packages():
+    cmd = ["powershell", "-NoProfile", "-Command", "Get-AppxPackage | Select-Object Name, PackageFullName | ConvertTo-Json"]
+    try:
+        p = subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, capture_output=True, text=True)
+        if p.stdout.strip():
+            data = json.loads(p.stdout)
+            if isinstance(data, dict):
+                data = [data]
+            return data
+    except Exception:
+        pass
+    return []
 
 def get_installed_apps():
     apps = []
@@ -56,6 +76,20 @@ def get_installed_apps():
         except OSError:
             continue
             
+    # Appx Packages (Bloatware Nativo)
+    appx_list = get_appx_packages()
+    for appx in appx_list:
+        name = appx.get("Name", "")
+        fullname = appx.get("PackageFullName", "")
+        if name and fullname and any(b.lower() in name.lower() for b in APPX_BLOATWARES):
+            apps.append({
+                "name": f"[Nativo] {name}",
+                "size_mb": 0,
+                "uninstall_string": f"APPX:{fullname}",
+                "install_location": "",
+                "is_bloatware": True
+            })
+            
     # Remove duplicates
     unique_apps = {}
     for app in apps:
@@ -72,9 +106,22 @@ def run_uninstall(uninstall_string, status_callback=None):
     if not uninstall_string:
         return
     try:
+        if uninstall_string.startswith("APPX:"):
+            fullname = uninstall_string.split(":", 1)[1]
+            cmd = ["powershell", "-NoProfile", "-Command", f"Remove-AppxPackage -Package '{fullname}'"]
+            subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, check=False)
+            return
+
+        u_lower = uninstall_string.lower()
         # Prevent UI prompts from msi strings when possible
-        if "msiexec" in uninstall_string.lower() and "/q" not in uninstall_string.lower() and "/x" in uninstall_string.lower():
+        if "msiexec" in u_lower and "/q" not in u_lower and "/x" in u_lower:
             uninstall_string += " /quiet /norestart"
+        # Smart flags for .exe installers (InnoSetup, NSIS)
+        elif ".exe" in u_lower and not any(f in u_lower for f in ["/s", "/quiet", "-s", "/verysilent"]):
+            if "unins000" in u_lower or "unins001" in u_lower: # Usually InnoSetup
+                uninstall_string += " /VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
+            elif "uninstall" in u_lower: # Usually NSIS
+                uninstall_string += " /S"
         
         # Execute silently
         subprocess.run(uninstall_string, creationflags=CREATE_NO_WINDOW, check=False, shell=True)

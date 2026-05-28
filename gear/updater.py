@@ -6,7 +6,7 @@ import urllib.request
 import json
 import zipfile
 
-CURRENT_VERSION = "2.1.1"
+CURRENT_VERSION = "2.1.2"
 
 # Exemplo de URL. Para funcionar, crie um arquivo version.json no repositório do GitHub e substitua essa URL pela URL *RAW* do arquivo.
 # O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/omendess/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}

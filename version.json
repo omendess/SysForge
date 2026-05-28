@@ -1,5 +1,5 @@
 {
-  "version": "2.1.1",
+  "version": "2.1.2",
   "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
-  "changelog": "- Adicionado Reparo Mágico (SFC, DISM, Chkdsk).\n- Scanner de dispositivos e rede integrado.\n- Ponto de Restauração de Sistema forçado.\n- Correção de exibição da M-Labs no painel Info.\n- Ajuste na tela de carregamento (Splash screen tocando vídeo inteiro)."
+  "changelog": "- Corrigido sistema de extração de Keys e status do Windows.\n- Corrigida detecção do Windows Defender no Scanner."
 }
