@@ -128,7 +128,15 @@ def _start_update_process(download_url, root_window):
             with open(ps_script, "w", encoding="utf-8") as f:
                 f.write(ps_code)
                 
-            subprocess.Popen(["powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", ps_script], creationflags=0x08000000)
+            clean_env = os.environ.copy()
+            clean_env.pop("_MEIPASS2", None)
+            clean_env.pop("_MEIPASS", None)
+                
+            subprocess.Popen(
+                ["powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", ps_script],
+                creationflags=0x08000000,
+                env=clean_env
+            )
             os._exit(0)
         except Exception as e:
             status_label.configure(text=f"Erro fatal: {e}")
