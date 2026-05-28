@@ -1,5 +1,5 @@
 {
-    "version": "2.6.0",
+    "version": "2.6.1.1",
     "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
-    "changelog": "- Protocolo Samaritan: sidebar e botoes unificados com indicador vermelho e hover preto.\n- Bloqueio de reinstalacao de softwares ja instalados no App Manager.\n- Botoes de acao padronizados em todo o sistema.\n- Limpeza geral do projeto e correcoes de estabilidade."
+    "changelog": "- Versão de teste para validação do novo sistema de Auto-Update (Rename-Item sem vazamento de memoria do PyInstaller)."
 }
