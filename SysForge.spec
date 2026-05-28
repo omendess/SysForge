@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('gui/media', 'gui/media'), ('OfficeInstall', 'OfficeInstall')],
+    datas=[('gui/media', 'gui/media'), ('icon.ico', '.'), ('OfficeInstall', 'OfficeInstall')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

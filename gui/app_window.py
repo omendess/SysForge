@@ -43,6 +43,15 @@ class AppWindow(ctk.CTk):
         # Centralizar na tela
         w, h = 1280, 720
         self.resizable(False, False)
+        
+        # Seta o Ícone
+        import sys, os
+        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        icon_path = os.path.join(base_dir, "icon.ico")
+        if os.path.exists(icon_path):
+            try: self.iconbitmap(icon_path)
+            except: pass
+
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         x = (sw - w) // 2

@@ -15,7 +15,7 @@ import urllib.request
 import json
 import zipfile
 
-CURRENT_VERSION = "2.5.0"
+CURRENT_VERSION = "2.5.1"
 
 # Exemplo de URL. Para funcionar, crie um arquivo version.json no repositório do GitHub e substitua essa URL pela URL *RAW* do arquivo.
 # O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/omendess/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}
@@ -63,6 +63,14 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
     dialog.attributes("-topmost", True)
     dialog.resizable(False, False)
     
+    import sys, os
+    base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    icon_path = os.path.join(base_dir, "icon.ico")
+    if os.path.exists(icon_path):
+        try: dialog.iconbitmap(icon_path)
+        except: pass
+
+    
     # Centralizar Popup
     dialog.update_idletasks()
     x = root_window.winfo_x() + (root_window.winfo_width() // 2) - (450 // 2)
@@ -105,10 +113,10 @@ def _start_update_process(download_url, root_window):
         
         ps_code = f"""
         Start-Sleep -Seconds 3
-        $zipPath = "$env:TEMP\\sysforge_update.zip"
-        Invoke-WebRequest -Uri '{download_url}' -OutFile $zipPath
-        Expand-Archive -Path $zipPath -DestinationPath '{exe_dir}' -Force
-        Remove-Item -Path $zipPath -Force
+        $newExe = "$env:TEMP\\SysForge_new.exe"
+        Invoke-WebRequest -Uri '{download_url}' -OutFile $newExe
+        Copy-Item -Path $newExe -Destination '{exe_path}' -Force
+        Remove-Item -Path $newExe -Force
         Start-Process -FilePath '{exe_path}'
         Remove-Item -Path '{ps_script}' -Force
         """

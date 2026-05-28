@@ -61,6 +61,15 @@ class SplashScreen(tk.Toplevel):
         # ── Janela sem bordas, centralizada ───────────────────────────────
         self.overrideredirect(True)
         self.attributes("-topmost", True)
+        
+        # Seta o Ícone
+        import sys, os
+        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        icon_path = os.path.join(base_dir, "icon.ico")
+        if os.path.exists(icon_path):
+            try: self.iconbitmap(icon_path)
+            except: pass
+
 
         W, H = 800, 450
         sw = self.winfo_screenwidth()
