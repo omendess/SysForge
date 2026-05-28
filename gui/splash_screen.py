@@ -21,12 +21,12 @@ except ImportError:
 def _get_video_path():
     """Resolve o caminho do video_splash.mp4 — funciona em .exe e em dev."""
     candidates = [
-        # Frozen (PyInstaller): diretório do .exe
-        os.path.join(os.path.dirname(sys.executable), "media", "logo m-labs.mp4") if getattr(sys, "frozen", False) else None,
+        # Frozen (PyInstaller OneFile): extracted to sys._MEIPASS
+        os.path.join(getattr(sys, "_MEIPASS", ""), "gui", "Media", "logo m-labs.mp4") if getattr(sys, "frozen", False) else None,
         # Dev: raiz do projeto (cwd)
-        os.path.join(os.getcwd(), "gui", "media", "logo m-labs.mp4"),
+        os.path.join(os.getcwd(), "gui", "Media", "logo m-labs.mp4"),
         # Relativo ao próprio arquivo .py
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "media", "logo m-labs.mp4"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "Media", "logo m-labs.mp4"),
     ]
     for p in candidates:
         if p and os.path.exists(p):

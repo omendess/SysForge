@@ -111,12 +111,15 @@ def _start_update_process(download_url, root_window):
         
         ps_script = os.path.join(os.environ.get("TEMP", exe_dir), "sysforge_updater.ps1")
         
+        old_exe = exe_path + ".old"
         ps_code = f"""
         Start-Sleep -Seconds 3
-        $newExe = "$env:TEMP\\SysForge_new.exe"
-        Invoke-WebRequest -Uri '{download_url}' -OutFile $newExe
-        Copy-Item -Path $newExe -Destination '{exe_path}' -Force
-        Remove-Item -Path $newExe -Force
+        $procName = [System.IO.Path]::GetFileNameWithoutExtension('{exe_path}')
+        Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+        
+        Rename-Item -Path '{exe_path}' -NewName '{os.path.basename(old_exe)}' -Force -ErrorAction SilentlyContinue
+        Invoke-WebRequest -Uri '{download_url}' -OutFile '{exe_path}'
         Start-Process -FilePath '{exe_path}'
         Remove-Item -Path '{ps_script}' -Force
         """
