@@ -144,3 +144,30 @@ class GenericWorker:
         finally:
             if self.completion_callback:
                 self.completion_callback()
+
+class InterventionWorker:
+    def __init__(self, func, log_callback, is_revert=False):
+        self.func = func
+        self.log_callback = log_callback
+        self.is_revert = is_revert
+        self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def start(self):
+        self.thread.start()
+
+    def _run(self):
+        try:
+            from gear.intervention_matrix import protocolo_guarda_chuva
+            
+            if not self.is_revert:
+                self.log_callback("> INICIANDO PROTOCOLO GUARDA-CHUVA...")
+                status = protocolo_guarda_chuva()
+                self.log_callback(status)
+            
+            for step_msg in self.func():
+                self.log_callback(step_msg)
+                time.sleep(0.1)
+            
+            self.log_callback("> OPERAÇÃO CONCLUÍDA.\n")
+        except Exception as e:
+            self.log_callback(f"> [ ERRO CRÍTICO ]: {str(e)}\n")

@@ -7,6 +7,8 @@ a = Analysis(
     datas=[
         ('gui/Media', 'gui/Media'),
         ('icon.ico', '.'),
+        ('icon.png', '.'),
+        ('logo_mlabs.png', '.'),
         ('OfficeInstall', 'OfficeInstall'),
     ],
     hiddenimports=[],

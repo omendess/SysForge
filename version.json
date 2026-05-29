@@ -1,5 +1,5 @@
 {
-    "version": "2.6.1.2",
+    "version": "2.6.2",
     "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
-    "changelog": "- Versão 2.6.1.2: Purge definitivo do PyInstaller via PowerShell [Environment]."
+    "changelog": "- Versão 2.6.2: Restauração da aba Reparo & Scanner original, inclusão de sistema de abas, Matriz de Intervenção assíncrona, purgação de bugs visuais e interface estendida (SFC/DISM e Rollback de Emergência) em background seguro."
 }

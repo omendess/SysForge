@@ -47,34 +47,41 @@ class AppWindow(ctk.CTk):
         # Seta o Ícone
         import sys, os
         base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        icon_path = os.path.join(base_dir, "icon.ico")
-        if os.path.exists(icon_path):
-            try: self.iconbitmap(icon_path)
-            except: pass
+        ico_path = os.path.join(base_dir, "icon.ico")
+        png_path = os.path.join(base_dir, "icon.png")
+        
+        try:
+            if os.path.exists(ico_path):
+                self.iconbitmap(ico_path)
+            
+            if os.path.exists(png_path):
+                import tkinter as tk
+                img = tk.PhotoImage(file=png_path)
+                self.iconphoto(False, img)
+        except Exception:
+            pass
 
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         x = (sw - w) // 2
         y = (sh - h) // 2
         self.geometry(f"{w}x{h}+{x}+{y}")
-        
-        try:
-            import sys
-            import os
-            base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-            icon_path = os.path.join(base_path, "icon.ico")
-            # Caso _MEIPASS não resolva, tenta na raiz do projeto (cwd)
-            if not os.path.exists(icon_path):
-                icon_path = "icon.ico"
-            self.iconbitmap(icon_path)
-        except Exception:
-            pass
             
         self.configure(fg_color=BG_MAIN)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         self._build_sidebar()
         self._build_views()
+        
+        # Elementos Táticos (HUD)
+        self.lbl_lat_lon = ctk.CTkLabel(self, text="LAT: 15.6014S\nLON: 56.0978W", font=("Consolas", 9), text_color="#A0A0A0", justify="left")
+        self.lbl_lat_lon.place(relx=0.98, rely=0.03, anchor="ne")
+        
+        self.lbl_track_id = ctk.CTkLabel(self, text="SYS.TRACKING_ID: [M-LABS-OP-01]", font=("Consolas", 9), text_color="#A0A0A0")
+        self.lbl_track_id.place(relx=0.98, rely=0.97, anchor="se")
+        
+        # Linhas decorativas horizontais removidas para evitar corte nos textos
+
         self.select_view("dashboard")
 
     # ─── Sidebar ────────────────────────────────────────────
@@ -89,7 +96,26 @@ class AppWindow(ctk.CTk):
         sb_sep.place(relx=1, rely=0, relheight=1, anchor="ne")
 
         # Logo
-        ctk.CTkLabel(sb, text="M LABS", font=("Helvetica", 26, "bold"), text_color="#D50000").grid(row=0, column=0, padx=24, pady=(28, 4), sticky="w")
+        import PIL.Image
+        import os, sys
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo_mlabs.png")
+        if not os.path.exists(logo_path):
+            logo_path = r"C:\Users\o_men\Downloads\logo Mlabs.png"
+            
+        try:
+            if hasattr(sys, '_MEIPASS'):
+                logo_path = os.path.join(sys._MEIPASS, "logo_mlabs.png")
+            
+            # Carregar a imagem para descobrir a proporção e não distorcer
+            img_pil = PIL.Image.open(logo_path)
+            orig_w, orig_h = img_pil.size
+            target_w = 160
+            target_h = int((target_w / orig_w) * orig_h)
+            
+            logo_img = ctk.CTkImage(light_image=img_pil, dark_image=img_pil, size=(target_w, target_h))
+            ctk.CTkLabel(sb, image=logo_img, text="").grid(row=0, column=0, padx=24, pady=(28, 4), sticky="w")
+        except Exception as e:
+            ctk.CTkLabel(sb, text="M LABS", font=("Helvetica", 26, "bold"), text_color="#D50000").grid(row=0, column=0, padx=24, pady=(28, 4), sticky="w")
         ctk.CTkLabel(sb, text="MOTOR DE IMPLANTAÇÃO", font=("Consolas", 11), text_color="#000000").grid(row=1, column=0, padx=26, pady=(0, 12), sticky="w")
 
         # Separator
@@ -97,59 +123,71 @@ class AppWindow(ctk.CTk):
         sep.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
 
         self.nav_btns = {}
+        self.nav_btns = {}
         self.nav_frames = {}
         self.nav_indicators = {}
+        self.nav_icons = {}
 
         items = [
-            ("💻  DASHBOARD",        "dashboard",  3),
-            ("⚙️  OPERAÇÕES",        "operations", 4),
-            ("📦  SOFTWARES",        "softwares",  5),
-            ("🛠️  TWEAKS WINDOWS",   "tweaks",     6),
-            ("🗑️  APP MANAGER",      "app_manager",7),
-            ("🚀  STARTUP",          "startup",    8),
-            ("🛡️  REPARO & SCANNER", "repair",     9),
-            ("📋  LOGS",             "logs",       10),
-            ("ℹ️  INFO",             "info",       11),
+            ("💻", "DASHBOARD",        "dashboard",  3),
+            ("⚙️", "OPERAÇÕES",        "operations", 4),
+            ("📦", "SOFTWARES",        "softwares",  5),
+            ("🛠️", "TWEAKS WINDOWS",   "tweaks",     6),
+            ("🗑️", "APP MANAGER",      "app_manager",7),
+            ("🚀", "STARTUP",          "startup",    8),
+            ("🛡️", "REPARO & SCANNER", "repair",     9),
+            ("📋", "LOGS",             "logs",       10),
+            ("ℹ️", "INFO",             "info",       11),
         ]
 
-        for text, key, row in items:
+        for icon, text, key, row in items:
             container = ctk.CTkFrame(sb, fg_color="#FFFFFF", border_width=1, border_color="#000000", corner_radius=0, height=42)
-            container.grid(row=row, column=0, padx=14, pady=5, sticky="ew")
+            container.grid(row=row, column=0, padx=14, pady=3, sticky="ew")
             container.pack_propagate(False)
 
             indicator = ctk.CTkFrame(container, width=4, fg_color="transparent", corner_radius=0)
-            indicator.pack(side="left", fill="y")
+            indicator.pack(side="left", fill="y", pady=1, padx=(1,0))
+            
+            ic_lbl = ctk.CTkLabel(container, text=icon, width=36, anchor="center", font=("Segoe UI Emoji", 16))
+            ic_lbl.pack(side="left", pady=1)
 
-            b = ctk.CTkButton(
-                container, text=f"  {text}", anchor="w", corner_radius=0, height=42,
-                fg_color="transparent", text_color="#000000", hover_color="#000000",
-                font=("Helvetica", 13, "bold"),
-                command=lambda k=key: self.select_view(k)
+            txt_lbl = ctk.CTkLabel(
+                container, text=text, anchor="w",
+                fg_color="transparent", text_color="#000000",
+                font=("Helvetica", 13, "bold")
             )
-            b.pack(side="left", fill="both", expand=True)
+            txt_lbl.pack(side="left", fill="both", expand=True, padx=(0, 1), pady=1)
 
-            self.nav_btns[key] = b
+            self.nav_btns[key] = txt_lbl
             self.nav_frames[key] = container
             self.nav_indicators[key] = indicator
+            self.nav_icons[key] = ic_lbl
 
-            def make_on_enter(k, btn, cont, ind):
+            def make_on_enter(k, btn, cont, ind, icn):
                 def on_enter(e):
                     if getattr(self, "_current_view", None) != k:
                         cont.configure(fg_color="#000000")
                         btn.configure(text_color="#FFFFFF")
+                        icn.configure(text_color="#FFFFFF")
                         ind.configure(fg_color="#D50000")
                 return on_enter
 
-            def make_on_leave(k, btn, cont, ind):
+            def make_on_leave(k, btn, cont, ind, icn):
                 def on_leave(e):
                     if getattr(self, "_current_view", None) != k:
                         cont.configure(fg_color="#FFFFFF")
                         btn.configure(text_color="#000000")
+                        icn.configure(text_color="#000000")
                         ind.configure(fg_color="transparent")
                 return on_leave
 
-            b.bind("<Enter>", make_on_enter(key, b, container, indicator))
-            b.bind("<Leave>", make_on_leave(key, b, container, indicator))
+            def trigger_click(e, k=key):
+                self.select_view(k)
+
+            for w in [container, indicator, ic_lbl, txt_lbl]:
+                w.bind("<Enter>", make_on_enter(key, txt_lbl, container, indicator, ic_lbl))
+                w.bind("<Leave>", make_on_leave(key, txt_lbl, container, indicator, ic_lbl))
+                w.bind("<Button-1>", trigger_click)
 
         # Footer badge
         from gear.updater import CURRENT_VERSION
@@ -159,31 +197,42 @@ class AppWindow(ctk.CTk):
 
     def _action_btn(self, parent, text, command, height=30):
         container = ctk.CTkFrame(parent, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF")
+        
         indicator = ctk.CTkFrame(container, width=4, height=height, fg_color="transparent", corner_radius=0)
-        indicator.pack(side="left")
-        b = ctk.CTkButton(
-            container, text=text, anchor="c", corner_radius=0, height=height, width=10,
-            fg_color="transparent", text_color="#000000", hover_color="#000000",
-            font=("Helvetica", 11, "bold"), command=command
+        indicator.pack(side="left", fill="y", pady=1, padx=(1,0))
+        
+        lbl = ctk.CTkLabel(
+            container, text=text, anchor="center", height=height,
+            fg_color="transparent", text_color="#000000",
+            font=("Helvetica", 11, "bold")
         )
-        b.pack(side="left", fill="both", expand=True, padx=(2, 6))
+        lbl.pack(side="left", fill="both", expand=True, padx=(2, 6), pady=1)
+        
         def on_enter(e):
             container.configure(fg_color="#000000")
-            b.configure(text_color="#FFFFFF")
+            lbl.configure(text_color="#FFFFFF")
             indicator.configure(fg_color="#D50000")
+            
         def on_leave(e):
             container.configure(fg_color="#FFFFFF")
-            b.configure(text_color="#000000")
+            lbl.configure(text_color="#000000")
             indicator.configure(fg_color="transparent")
-        b.bind("<Enter>", on_enter)
-        b.bind("<Leave>", on_leave)
+            
+        def trigger(e):
+            command()
+
+        for w in [container, indicator, lbl]:
+            w.bind("<Enter>", on_enter)
+            w.bind("<Leave>", on_leave)
+            w.bind("<Button-1>", trigger)
+            
         return container
 
     # ─── Views Container ────────────────────────────────────
     def _build_views(self):
         self.views = {}
         for key, builder in [("dashboard",self._build_dashboard),("operations",self._build_operations),("softwares",self._build_softwares),("tweaks",self._build_tweaks),("app_manager",self._build_app_manager),("startup",self._build_startup),("repair",self._build_repair),("logs",self._build_logs),("info",self._build_info)]:
-            f = ctk.CTkFrame(self, corner_radius=0, fg_color=BG_MAIN)
+            f = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
             self.views[key] = f
             builder(f)
 
@@ -193,14 +242,17 @@ class AppWindow(ctk.CTk):
             f.grid_forget()
         self.views[name].grid(row=0, column=1, sticky="nsew", padx=28, pady=28)
         for k, b in self.nav_btns.items():
+            ic = self.nav_icons.get(k)
             if k == name:
                 self.nav_frames[k].configure(fg_color="#000000", border_color="#000000")
                 self.nav_indicators[k].configure(fg_color="#D50000")
-                b.configure(fg_color="#000000", text_color="#FFFFFF", hover_color="#000000")
+                b.configure(fg_color="transparent", text_color="#FFFFFF")
+                if ic: ic.configure(text_color="#FFFFFF")
             else:
                 self.nav_frames[k].configure(fg_color="#FFFFFF", border_color="#000000")
                 self.nav_indicators[k].configure(fg_color="transparent")
-                b.configure(fg_color="transparent", text_color="#000000", hover_color="#000000")
+                b.configure(fg_color="transparent", text_color="#000000")
+                if ic: ic.configure(text_color="#000000")
         if name == "dashboard":
             self._start_hw_loop()
         elif name == "operations":
@@ -961,17 +1013,39 @@ class AppWindow(ctk.CTk):
         def _tab_btn(text, key):
             f = ctk.CTkFrame(tab_bar, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF")
             ind = ctk.CTkFrame(f, width=4, height=34, fg_color="transparent", corner_radius=0)
-            ind.pack(side="left")
-            b = ctk.CTkButton(
-                f, text=text.upper(), height=34, width=10, corner_radius=0,
-                font=("Helvetica", 11, "bold"), anchor="c",
-                fg_color="transparent", text_color="#000000", hover_color="#E0E0E0",
-                command=lambda k=key: self._switch_startup_tab(k)
+            ind.pack(side="left", fill="y", pady=1, padx=(1,0))
+            
+            lbl = ctk.CTkLabel(
+                f, text=text.upper(), height=34,
+                font=("Helvetica", 11, "bold"), anchor="center",
+                fg_color="transparent", text_color="#000000"
             )
-            b.pack(side="left", fill="both", expand=True, padx=(2, 6))
+            lbl.pack(side="left", fill="both", expand=True, padx=(2, 6), pady=1)
+            
             self._startup_tab_frames[key] = f
             self._startup_tab_inds[key] = ind
-            self._startup_tab_btns[key] = b
+            self._startup_tab_btns[key] = lbl
+            
+            def on_enter(e):
+                if self._startup_tab.get() != key:
+                    f.configure(fg_color="#000000")
+                    lbl.configure(text_color="#FFFFFF")
+                    ind.configure(fg_color="#D50000")
+                    
+            def on_leave(e):
+                if self._startup_tab.get() != key:
+                    f.configure(fg_color="#FFFFFF")
+                    lbl.configure(text_color="#000000")
+                    ind.configure(fg_color="transparent")
+                    
+            def trigger(e):
+                self._switch_startup_tab(key)
+
+            for w in [f, ind, lbl]:
+                w.bind("<Enter>", on_enter)
+                w.bind("<Leave>", on_leave)
+                w.bind("<Button-1>", trigger)
+                
             return f
 
         _tab_btn("🚀 Inicialização", "startup").pack(side="left", padx=(0, 6))
@@ -984,11 +1058,9 @@ class AppWindow(ctk.CTk):
                      placeholder_text="BUSCAR...", height=34, corner_radius=0,
                      border_width=1, border_color="#000000", fg_color="#FFFFFF", text_color="#000000",
                      font=("Consolas", 12)).pack(side="right", padx=(6, 0))
-        ctk.CTkButton(tab_bar, text="RELOAD", width=34, height=34, corner_radius=0,
-                      fg_color="transparent", border_width=1, border_color="#000000", text_color="#000000",
-                      hover_color="#E0E0E0", font=("Helvetica", 12, "bold"),
-                      command=lambda: threading.Thread(target=self._load_startup, daemon=True).start()
-                      ).pack(side="right", padx=4)
+        self._action_btn(tab_bar, "RELOAD", 
+                         lambda: threading.Thread(target=self._load_startup, daemon=True).start(), 
+                         height=34).pack(side="right", padx=4)
 
         self.scroll_startup = ctk.CTkFrame(view, fg_color="#FFFFFF",
                                                      corner_radius=0, border_width=1,
@@ -1013,11 +1085,11 @@ class AppWindow(ctk.CTk):
             if k == key:
                 f.configure(fg_color="#000000")
                 self._startup_tab_inds[k].configure(fg_color="#D50000")
-                self._startup_tab_btns[k].configure(text_color="#FFFFFF", hover_color="#000000")
+                self._startup_tab_btns[k].configure(text_color="#FFFFFF")
             else:
                 f.configure(fg_color="#FFFFFF")
                 self._startup_tab_inds[k].configure(fg_color="transparent")
-                self._startup_tab_btns[k].configure(text_color="#000000", hover_color="#E0E0E0")
+                self._startup_tab_btns[k].configure(text_color="#000000")
         self._filter_startup()
 
 
@@ -1087,13 +1159,64 @@ class AppWindow(ctk.CTk):
     def _build_repair(self, view):
         header = ctk.CTkFrame(view, fg_color="transparent")
         header.pack(fill="x", pady=(0, 10))
-        self._section_title(header, "Reparo & Scanner", "Ferramentas de diagnóstico e correção do Windows")
+        self._section_title(header, "Reparo & Diagnóstico", "Ferramentas de correção e intervenção do sistema")
 
-        scroll = ctk.CTkScrollableFrame(view, fg_color="transparent")
-        scroll.pack(fill="both", expand=True)
+        tab_bar = ctk.CTkFrame(view, fg_color="transparent")
+        tab_bar.pack(fill="x", pady=(0, 10))
+        
+        self._repair_tab = ctk.StringVar(value="repair")
+        self._repair_tab_frames = {}
+        self._repair_tab_inds = {}
+        self._repair_tab_btns = {}
 
-        body = ctk.CTkFrame(scroll, fg_color="transparent")
-        body.pack(fill="x", padx=10)
+        def _tab_btn(text, key):
+            f = ctk.CTkFrame(tab_bar, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF")
+            ind = ctk.CTkFrame(f, width=4, height=34, fg_color="transparent", corner_radius=0)
+            ind.pack(side="left", fill="y", pady=1, padx=(1,0))
+            
+            lbl = ctk.CTkLabel(
+                f, text=text.upper(), height=34,
+                font=("Helvetica", 11, "bold"), anchor="center",
+                fg_color="transparent", text_color="#000000"
+            )
+            lbl.pack(side="left", fill="both", expand=True, padx=(2, 6), pady=1)
+            
+            self._repair_tab_frames[key] = f
+            self._repair_tab_inds[key] = ind
+            self._repair_tab_btns[key] = lbl
+            
+            def on_enter(e):
+                if self._repair_tab.get() != key:
+                    f.configure(fg_color="#000000")
+                    lbl.configure(text_color="#FFFFFF")
+                    ind.configure(fg_color="#D50000")
+                    
+            def on_leave(e):
+                if self._repair_tab.get() != key:
+                    f.configure(fg_color="#FFFFFF")
+                    lbl.configure(text_color="#000000")
+                    ind.configure(fg_color="transparent")
+                    
+            def trigger(e):
+                self._switch_repair_tab(key)
+
+            for w in [f, ind, lbl]:
+                w.bind("<Enter>", on_enter)
+                w.bind("<Leave>", on_leave)
+                w.bind("<Button-1>", trigger)
+                
+            return f
+
+        _tab_btn("🔧 Ferramentas Padrão", "repair").pack(side="left", padx=(0, 6))
+        _tab_btn("☣️ Matriz de Intervenção", "matrix").pack(side="left", padx=(0, 6))
+
+        # Frames principais para cada aba
+        self.frame_repair = ctk.CTkFrame(view, fg_color="transparent")
+        self.frame_matrix = ctk.CTkFrame(view, fg_color="transparent")
+        
+        # ─── ABA 1: REPARO & SCANNER (O antigo) ───
+        body = ctk.CTkFrame(self.frame_repair, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=10)
         
         col_left = ctk.CTkFrame(body, fg_color="transparent")
         col_left.pack(side="left", fill="both", expand=True, padx=(0, 10), anchor="n")
@@ -1101,7 +1224,7 @@ class AppWindow(ctk.CTk):
         col_right = ctk.CTkFrame(body, fg_color="transparent")
         col_right.pack(side="left", fill="both", expand=True, padx=(10, 0), anchor="n")
 
-        def _action_btn(parent, text, cmd, color="#D50000", hover="#B71C1C"):
+        def _action_btn_red(parent, text, cmd, color="#D50000", hover="#B71C1C"):
             return ctk.CTkButton(parent, text=text.upper(), height=36, corner_radius=0, border_width=1, border_color="#000000", text_color="#FFFFFF", font=("Helvetica", 12, "bold"), fg_color=color, hover_color=hover, command=cmd)
 
         def _run_task(task_func):
@@ -1112,38 +1235,40 @@ class AppWindow(ctk.CTk):
 
         # --- Coluna Esquerda: REPAROS ---
         card_rep = self._card(col_left)
-        card_rep.pack(fill="x", pady=(0, 20))
-        ctk.CTkLabel(card_rep, text="🪄 Reparo Mágico e Sistema", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(20, 10))
-        ctk.CTkFrame(card_rep, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=4)
+        card_rep.pack(fill="x", pady=(0, 10))
+        ctk.CTkLabel(card_rep, text="🪄 Reparo Mágico e Sistema", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(15, 6))
+        ctk.CTkFrame(card_rep, height=1, fg_color="#000000").pack(fill="x", padx=20, pady=4)
         
-        _action_btn(card_rep, "SFC + DISM (Reparo de Imagem)", lambda: _run_task(repair_sfc_dism)).pack(fill="x", padx=20, pady=6)
-        _action_btn(card_rep, "Chkdsk (Reparo de Disco no próximo Boot)", lambda: _run_task(repair_disk_chkdsk)).pack(fill="x", padx=20, pady=6)
-        _action_btn(card_rep, "Reset de Rede (Winsock, IP, DNS)", lambda: _run_task(reset_network)).pack(fill="x", padx=20, pady=6)
-        _action_btn(card_rep, "Reset do Windows Update", lambda: _run_task(reset_windows_update)).pack(fill="x", padx=20, pady=6)
+        from gear.system_repair import repair_sfc_dism, repair_disk_chkdsk, reset_network, reset_windows_update, force_restore_point, scan_network_devices
         
-        ctk.CTkLabel(card_rep, text="Atenção: Alguns reparos podem demorar minutos.", font=("Consolas", 11), text_color="#000000").pack(pady=(4, 20))
+        _action_btn_red(card_rep, "SFC + DISM (Reparo de Imagem)", lambda: _run_task(repair_sfc_dism)).pack(fill="x", padx=20, pady=5)
+        _action_btn_red(card_rep, "Chkdsk (Reparo de Disco no próximo Boot)", lambda: _run_task(repair_disk_chkdsk)).pack(fill="x", padx=20, pady=5)
+        _action_btn_red(card_rep, "Reset de Rede (Winsock, IP, DNS)", lambda: _run_task(reset_network)).pack(fill="x", padx=20, pady=5)
+        _action_btn_red(card_rep, "Reset do Windows Update", lambda: _run_task(reset_windows_update)).pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(card_rep, text="Atenção: Alguns reparos podem demorar minutos.", font=("Consolas", 11), text_color="#000000").pack(pady=(4, 15))
 
         # --- Coluna Direita: BACKUP E REDE ---
         card_bkp = self._card(col_right)
-        card_bkp.pack(fill="x", pady=(0, 20))
-        ctk.CTkLabel(card_bkp, text="🛡️ Ponto de Restauração", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(20, 10))
-        ctk.CTkFrame(card_bkp, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=4)
+        card_bkp.pack(fill="x", pady=(0, 10))
+        ctk.CTkLabel(card_bkp, text="🛡️ Ponto de Restauração", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(15, 6))
+        ctk.CTkFrame(card_bkp, height=1, fg_color="#000000").pack(fill="x", padx=20, pady=4)
         
-        _action_btn(card_bkp, "Criar Ponto de Restauração Forçado", lambda: _run_task(force_restore_point), GREEN, "#16A34A").pack(fill="x", padx=20, pady=(6, 20))
+        _action_btn_red(card_bkp, "Criar Ponto de Restauração Forçado", lambda: _run_task(force_restore_point), "#22C55E", "#16A34A").pack(fill="x", padx=20, pady=(5, 15))
 
         card_lic = self._card(col_right)
-        card_lic.pack(fill="x", pady=(0, 20))
-        ctk.CTkLabel(card_lic, text="🔑 Licenças e Ativação", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(20, 10))
-        ctk.CTkFrame(card_lic, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=4)
+        card_lic.pack(fill="x", pady=(0, 10))
+        ctk.CTkLabel(card_lic, text="🔑 Licenças e Ativação", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(15, 6))
+        ctk.CTkFrame(card_lic, height=1, fg_color="#000000").pack(fill="x", padx=20, pady=4)
         
         from gear.activators import activate_windows, capture_product_keys
-        _action_btn(card_lic, "Ativar Windows (HWID Digital)", lambda: _run_task(activate_windows), ACCENT, ACCENT_HVR).pack(fill="x", padx=20, pady=6)
-        _action_btn(card_lic, "Backup de Product Keys", lambda: _run_task(capture_product_keys), AMBER, "#D97706").pack(fill="x", padx=20, pady=(6, 20))
+        _action_btn_red(card_lic, "Ativar Windows (HWID Digital)", lambda: _run_task(activate_windows), "#D50000", "#B71C1C").pack(fill="x", padx=20, pady=5)
+        _action_btn_red(card_lic, "Backup de Product Keys", lambda: _run_task(capture_product_keys), "#F59E0B", "#D97706").pack(fill="x", padx=20, pady=(5, 15))
 
         card_scan = self._card(col_right)
-        card_scan.pack(fill="x", pady=(0, 20))
-        ctk.CTkLabel(card_scan, text="📡 Scanner de Dispositivos", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(20, 10))
-        ctk.CTkFrame(card_scan, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=4)
+        card_scan.pack(fill="x", pady=(0, 10))
+        ctk.CTkLabel(card_scan, text="📡 Scanner de Dispositivos", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(15, 6))
+        ctk.CTkFrame(card_scan, height=1, fg_color="#000000").pack(fill="x", padx=20, pady=4)
         
         def _do_scan():
             self.lbl_repair_st.configure(text="⏳ Escaneando rede e bluetooth...")
@@ -1165,13 +1290,126 @@ class AppWindow(ctk.CTk):
             self.scan_text.configure(state="disabled")
             self.lbl_repair_st.configure(text="✅ Scan concluído.")
 
-        _action_btn(card_scan, "Verificar Wi-Fi, Cabo e Bluetooth", _do_scan, PURPLE, "#9333EA").pack(fill="x", padx=20, pady=6)
+        _action_btn_red(card_scan, "Verificar Wi-Fi, Cabo e Bluetooth", _do_scan, "#A855F7", "#9333EA").pack(fill="x", padx=20, pady=5)
         
-        self.scan_text = ctk.CTkTextbox(card_scan, height=120, fg_color=BG_MAIN, corner_radius=0, border_width=1, border_color="#000000", font=ctk.CTkFont(family="Consolas", size=11), text_color="#000000", state="disabled")
-        self.scan_text.pack(fill="x", padx=20, pady=(6, 20))
+        self.scan_text = ctk.CTkTextbox(card_scan, height=80, fg_color="#F4F4F5", corner_radius=0, border_width=1, border_color="#000000", font=ctk.CTkFont(family="Consolas", size=11), text_color="#000000", state="disabled")
+        self.scan_text.pack(fill="x", padx=20, pady=(5, 15))
 
-        self.lbl_repair_st = ctk.CTkLabel(view, text="Aguardando ação...", font=("Consolas", 12), text_color="#000000")
+        self.lbl_repair_st = ctk.CTkLabel(self.frame_repair, text="Aguardando ação...", font=("Consolas", 12), text_color="#000000")
         self.lbl_repair_st.pack(side="bottom", pady=10)
+
+        # ─── ABA 2: MATRIZ DE INTERVENÇÃO ───
+        body_matrix = ctk.CTkFrame(self.frame_matrix, fg_color="transparent")
+        body_matrix.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        col_left_m = ctk.CTkFrame(body_matrix, fg_color="transparent")
+        col_left_m.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        col_right_m = ctk.CTkFrame(body_matrix, fg_color="transparent")
+        col_right_m.pack(side="left", fill="both", expand=True, padx=(10, 0))
+
+        ctk.CTkLabel(col_left_m, text="VETORES DE ANOMALIA", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", pady=(0, 10))
+        
+        def _purge_btn(parent, text, cmd):
+            container = ctk.CTkFrame(parent, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF", height=48)
+            
+            indicator = ctk.CTkFrame(container, width=4, height=48, fg_color="transparent", corner_radius=0)
+            indicator.pack(side="left", fill="y", pady=1, padx=(1,0))
+            
+            lbl = ctk.CTkLabel(
+                container, text=text, anchor="center", height=48,
+                fg_color="transparent", text_color="#000000",
+                font=("Helvetica", 14, "bold")
+            )
+            lbl.pack(side="left", fill="both", expand=True, padx=(2, 6), pady=1)
+            
+            def on_enter(e):
+                container.configure(fg_color="#000000")
+                lbl.configure(text_color="#FFFFFF")
+                indicator.configure(fg_color="#D50000")
+                
+            def on_leave(e):
+                container.configure(fg_color="#FFFFFF")
+                lbl.configure(text_color="#000000")
+                indicator.configure(fg_color="transparent")
+                
+            def trigger(e):
+                cmd()
+
+            for w in [container, indicator, lbl]:
+                w.bind("<Enter>", on_enter)
+                w.bind("<Leave>", on_leave)
+                w.bind("<Button-1>", trigger)
+                
+            return container
+
+        ctk.CTkLabel(col_right_m, text="TERMINAL DE OPERAÇÕES", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", pady=(0, 10))
+        
+        self.term_text = ctk.CTkTextbox(
+            col_right_m, fg_color="#000000", text_color="#FFFFFF", 
+            font=("Consolas", 11, "bold"), corner_radius=0, 
+            border_width=1, border_color="#000000", height=250
+        )
+        self.term_text.pack(fill="x", anchor="n")
+        self.term_text.configure(state="disabled")
+
+        def _log(msg):
+            self.term_text.configure(state="normal")
+            self.term_text.insert("end", msg + "\n")
+            self.term_text.see("end")
+            self.term_text.configure(state="disabled")
+
+        def _run_intervention(func, is_revert=False):
+            from worker.thread_manager import InterventionWorker
+            self.term_text.configure(state="normal")
+            self.term_text.delete("1.0", "end")
+            self.term_text.configure(state="disabled")
+            
+            def safe_log(m):
+                self.after(0, lambda msg=m: _log(msg))
+                
+            InterventionWorker(func, safe_log, is_revert).start()
+
+        from gear.intervention_matrix import fix_rede_falsa, fix_windows_update, fix_spooler_impressao, fix_explorer_congelado, fix_imagem_sistema, reverter_estado
+
+        _purge_btn(col_left_m, "[ PURGE ] PROTOCOLOS DE REDE", lambda: _run_intervention(fix_rede_falsa)).pack(fill="x", pady=6)
+        _purge_btn(col_left_m, "[ PURGE ] WINDOWS UPDATE", lambda: _run_intervention(fix_windows_update)).pack(fill="x", pady=6)
+        _purge_btn(col_left_m, "[ PURGE ] SPOOLER DE IMPRESSÃO", lambda: _run_intervention(fix_spooler_impressao)).pack(fill="x", pady=6)
+        _purge_btn(col_left_m, "[ PURGE ] SHELL EXPLORER", lambda: _run_intervention(fix_explorer_congelado)).pack(fill="x", pady=6)
+        _purge_btn(col_left_m, "[ PURGE ] IMAGEM DO SISTEMA (SFC/DISM)", lambda: _run_intervention(fix_imagem_sistema)).pack(fill="x", pady=6)
+        
+        ctk.CTkFrame(col_left_m, height=1, fg_color="#000000").pack(fill="x", pady=10)
+        
+        def _btn_emergencia(parent, text, cmd):
+            return ctk.CTkButton(
+                parent, text=text, height=48, corner_radius=0, 
+                border_width=2, border_color="#000000", text_color="#FFFFFF", 
+                font=("Helvetica", 14, "bold"), fg_color="#000000", 
+                hover_color="#333333", command=cmd
+            )
+            
+        _btn_emergencia(col_left_m, "[ < ] INICIAR REVERSÃO DE EMERGÊNCIA", lambda: _run_intervention(reverter_estado, is_revert=True)).pack(fill="x", pady=(10, 0))
+
+        self._switch_repair_tab("repair")
+
+    def _switch_repair_tab(self, key):
+        self._repair_tab.set(key)
+        for k, f in self._repair_tab_frames.items():
+            if k == key:
+                f.configure(fg_color="#000000")
+                self._repair_tab_inds[k].configure(fg_color="#D50000")
+                self._repair_tab_btns[k].configure(text_color="#FFFFFF")
+            else:
+                f.configure(fg_color="#FFFFFF")
+                self._repair_tab_inds[k].configure(fg_color="transparent")
+                self._repair_tab_btns[k].configure(text_color="#000000")
+                
+        if key == "repair":
+            self.frame_matrix.pack_forget()
+            self.frame_repair.pack(fill="both", expand=True)
+        else:
+            self.frame_repair.pack_forget()
+            self.frame_matrix.pack(fill="both", expand=True)
 
     # ═══════════════════════════════════════════════════════
     #  LOGS
