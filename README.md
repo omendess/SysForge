@@ -35,3 +35,13 @@ pyinstaller --noconfirm --onedir --windowed --add-data "gui;gui" --add-data "gea
 - **Softwares (Arsenal Expandido)**: Listas categorizadas do Winget para navegadores, comunicação, desenvolvimento e mais.
 - **Windows Tweaks**: Ferramenta de injeção de registro para modo escuro, desativação de telemetria, Bing no iniciar e exibição de arquivos ocultos.
 - **App Manager**: Desinstalador e varredor de Bloatwares (ex: TikTok, McAfee), que localiza registros da Microsoft para obter Uninstall Strings precisas.
+
+## PROTOCOLO DE VERSIONAMENTO (MATRIZ DE 4 EIXOS)
+A partir da geração 2.7, o SysForge adota uma nomenclatura estrita e cirúrgica para versionamento no formato `[Geração].[Lógica].[Matemática].[Interface]`:
+
+- **Eixo 1 (Geração):** Refatoração global, mudança de arquitetura raiz ou troca de motor (Ex: 2.0.0.0).
+- **Eixo 2 (Lógica):** Mudanças no Core, chamadas WMI, estruturação de Threads, integrações pesadas no SO e atualizadores (Ex: 2.7.0.0).
+- **Eixo 3 (Matemática):** Alterações em algoritmos, heurística de detecção, caminhos de registro e regras de purgação de arquivos.
+- **Eixo 4 (Interface):** Atualizações puramente visuais, grids no CustomTkinter, cores, ícones e reatividade visual.
+
+*Nota:* Uma alteração isolada num elemento visual aumenta apenas o Eixo 4. Uma refatoração lógica profunda aumenta o Eixo 2 e zera os eixos subsequentes.

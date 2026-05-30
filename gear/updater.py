@@ -8,18 +8,29 @@ if sys.stdout is None:
     sys.stdout = Dummy()
     sys.stderr = Dummy()
 import os
-import sys
 import threading
 import subprocess
 import urllib.request
 import json
-import zipfile
 
-CURRENT_VERSION = "2.6.2"
+CURRENT_VERSION = "2.7.0.0"
 
-# Exemplo de URL. Para funcionar, crie um arquivo version.json no repositório do GitHub e substitua essa URL pela URL *RAW* do arquivo.
-# O version.json deve ter: {"version": "2.0.1", "download_url": "https://github.com/omendess/SysForge/archive/refs/heads/main.zip", "changelog": "Novas correções."}
 UPDATE_URL = "https://raw.githubusercontent.com/omendess/SysForge/main/version.json"
+
+
+def _compare_versions(v1, v2):
+    """Comparação semântica de versões. Retorna True se v2 > v1."""
+    try:
+        parts1 = [int(x) for x in v1.split(".")]
+        parts2 = [int(x) for x in v2.split(".")]
+        # Pad shorter list with zeros
+        max_len = max(len(parts1), len(parts2))
+        parts1.extend([0] * (max_len - len(parts1)))
+        parts2.extend([0] * (max_len - len(parts2)))
+        return parts2 > parts1
+    except (ValueError, AttributeError):
+        return False
+
 
 def check_for_updates(root_window, manual=False):
     """Verifica se há atualizações no GitHub e notifica o usuário."""
@@ -28,19 +39,19 @@ def check_for_updates(root_window, manual=False):
             import time
             cache_buster_url = f"{UPDATE_URL}?t={int(time.time())}"
             req = urllib.request.Request(cache_buster_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
+            with urllib.request.urlopen(req, timeout=8) as response:
                 data = json.loads(response.read().decode())
                 
                 latest_version = data.get("version", CURRENT_VERSION)
                 download_url = data.get("download_url", "")
                 changelog = data.get("changelog", "Melhorias de estabilidade e segurança.")
                 
-                if latest_version > CURRENT_VERSION:
+                if _compare_versions(CURRENT_VERSION, latest_version):
                     root_window.after(0, lambda: _show_update_dialog(root_window, latest_version, download_url, changelog))
                 elif manual:
                     root_window.after(0, lambda: _show_no_update_dialog(root_window))
         except Exception as e:
-            print("Erro ao buscar atualizações (O GitHub pode estar inacessível ou URL não configurada).", e)
+            print("Erro ao buscar atualizações:", e)
             if manual:
                 root_window.after(0, lambda: _show_error_dialog(root_window))
 
@@ -63,7 +74,6 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
     dialog.attributes("-topmost", True)
     dialog.resizable(False, False)
     
-    import sys, os
     base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     icon_path = os.path.join(base_dir, "icon.ico")
     if os.path.exists(icon_path):
@@ -93,7 +103,6 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
     ctk.CTkButton(btn_frame, text="Lembrar Depois", fg_color="#334155", hover_color="#1E293B", command=dialog.destroy).pack(side="right", expand=True, padx=5)
 
 def _start_update_process(download_url, root_window):
-    import sys, os, subprocess
     import customtkinter as ctk
     
     loading_frame = ctk.CTkFrame(root_window, fg_color="#0F172A", corner_radius=0)
@@ -107,40 +116,49 @@ def _start_update_process(download_url, root_window):
     
     if is_compiled:
         exe_path = sys.executable
-        exe_dir = os.path.dirname(exe_path)
-        
-        ps_script = os.path.join(os.environ.get("TEMP", exe_dir), "sysforge_updater.ps1")
-        
-        old_exe = exe_path + ".old"
-        ps_code = f"""
-        Start-Sleep -Seconds 3
-        $procName = [System.IO.Path]::GetFileNameWithoutExtension('{exe_path}')
-        Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 1
-        
-        Rename-Item -Path '{exe_path}' -NewName '{os.path.basename(old_exe)}' -Force -ErrorAction SilentlyContinue
-        Invoke-WebRequest -Uri '{download_url}' -OutFile '{exe_path}'
-        
-        # Purge PyInstaller environment leaks before starting new process
-        [Environment]::SetEnvironmentVariable('_MEIPASS2', $null, 'Process')
-        [Environment]::SetEnvironmentVariable('_MEIPASS', $null, 'Process')
-        
-        Start-Process -FilePath '{exe_path}'
-        Remove-Item -Path '{ps_script}' -Force
-        """
+        exe_old = exe_path + ".old"
+        exe_new = exe_path + ".new"
         
         try:
-            with open(ps_script, "w", encoding="utf-8") as f:
-                f.write(ps_code)
+            # 1. Tentar deletar um arquivo .old residual
+            if os.path.exists(exe_old):
+                try:
+                    os.remove(exe_old)
+                except:
+                    pass
+            
+            # 2. Baixar o novo executável temporariamente
+            import urllib.request
+            req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=30) as response, open(exe_new, 'wb') as out_file:
+                out_file.write(response.read())
+            
+            # Validar se baixou algo razoável (> 1MB)
+            if os.path.getsize(exe_new) < 1048576:
+                raise Exception("Arquivo corrompido ou download incompleto.")
                 
-            subprocess.Popen(
-                ["powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", ps_script],
-                creationflags=0x08000000
-            )
+            # 3. Ghost Rename (Renomear o executável VIVO)
+            os.rename(exe_path, exe_old)
+            
+            # 4. Mover o novo para o nome original
+            os.rename(exe_new, exe_path)
+            
+            # 5. Limpar variáveis de ambiente e reiniciar
+            if "_MEIPASS2" in os.environ:
+                del os.environ["_MEIPASS2"]
+            if "_MEIPASS" in os.environ:
+                del os.environ["_MEIPASS"]
+                
+            subprocess.Popen([exe_path], creationflags=0x08000000)
             os._exit(0)
+            
         except Exception as e:
             status_label.configure(text=f"Erro fatal: {e}")
             root_window.update()
+            # Limpeza caso falhe
+            if os.path.exists(exe_new):
+                try: os.remove(exe_new)
+                except: pass
     else:
         status_label.configure(text="Atualização automática só funciona na versão compilada (.exe)")
         root_window.update()

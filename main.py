@@ -7,15 +7,17 @@ if sys.stdout is None:
             pass
     sys.stdout = Dummy()
     sys.stderr = Dummy()
-import sys
 import os
 
 try:
     if getattr(sys, 'frozen', False):
-        exe_path = sys.executable
-        old_exe = exe_path + ".old"
-        if os.path.exists(old_exe):
-            os.remove(old_exe)
+        exe_dir = os.path.dirname(sys.executable)
+        import glob
+        for old_file in glob.glob(os.path.join(exe_dir, "*.old")):
+            try:
+                os.remove(old_file)
+            except Exception:
+                pass
 except Exception:
     pass
 
@@ -38,9 +40,9 @@ if __name__ == "__main__":
     app.withdraw()
 
     def _launch_main():
-        """Chamado pela SplashScreen quando o vídeo termina."""
+        """Chamado pela SplashScreen quando a animação termina."""
         app.deiconify()
-        app.after(1500, lambda: check_for_updates(app))
+        app.after(2000, lambda: check_for_updates(app))
 
     # A Splash roda por cima do app invisível
     SplashScreen(app, _launch_main)

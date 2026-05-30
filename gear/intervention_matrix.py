@@ -85,3 +85,67 @@ def reverter_estado():
     cmd = "Restore-Computer -RestorePoint (Get-ComputerRestorePoint | Where-Object Description -match 'SysForge' | Select-Object -Last 1).SequenceNumber"
     run_cmd(cmd)
     yield "> [ AVISO ] O sistema será reiniciado automaticamente se a restauração for bem sucedida."
+
+def ressuscitar_drivers():
+    yield "> 📡 Iniciando Protocolo de Ressuscitação de Drivers..."
+    time.sleep(0.5)
+    yield "> 🔍 Varrendo WMI (Win32_PnPEntity) por anomalias (ConfigManagerErrorCode != 0)..."
+    
+    import json
+    cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 -and $_.ConfigManagerErrorCode -ne $null } | Select-Object Name, DeviceID | ConvertTo-Json"'
+    out = subprocess.run(cmd, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+    
+    if not out.stdout.strip():
+        yield "> ✅ Nenhum conflito de driver detectado. Hardware estável."
+        return
+        
+    try:
+        devices = json.loads(out.stdout)
+        if isinstance(devices, dict):
+            devices = [devices]
+    except Exception:
+        yield "> ❌ Erro ao analisar resposta do WMI."
+        return
+        
+    for dev in devices:
+        name = dev.get('Name', 'Unknown')
+        dev_id = dev.get('DeviceID', '')
+        yield f"> ⚠️ Anomalia encontrada: {name}"
+        
+        # Nível 1: Soft Reset
+        yield f"  > Nível 1: Executando Soft Reset (Disable -> Enable)..."
+        subprocess.run(["pnputil", "/disable-device", dev_id], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        time.sleep(1)
+        subprocess.run(["pnputil", "/enable-device", dev_id], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        
+        # Verificar se corrigiu
+        check_cmd = f'powershell -NoProfile -Command "Get-CimInstance Win32_PnPEntity -Filter \\"DeviceID=\'{dev_id}\'\\" | Select-Object ConfigManagerErrorCode | ConvertTo-Json"'
+        check_out = subprocess.run(check_cmd, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        
+        fixed = False
+        try:
+            status = json.loads(check_out.stdout).get("ConfigManagerErrorCode")
+            if status == 0: fixed = True
+        except:
+            pass
+            
+        if fixed:
+            yield "  > ✅ Soft Reset bem-sucedido."
+        else:
+            yield "  > ❌ Soft Reset falhou. Iniciando Nível 2 (Hard Purge)..."
+            # Precisamos extrair qual oem.inf pertence a ele para purgar
+            inf_cmd = f'powershell -NoProfile -Command "(Get-CimInstance Win32_PnPSignedDriver | Where-Object {{ $_.DeviceID -eq \'{dev_id}\' }}).InfName"'
+            inf_out = subprocess.run(inf_cmd, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            inf_name = inf_out.stdout.strip()
+            
+            if inf_name and inf_name.lower().endswith(".inf"):
+                yield f"  > 🗑️ Purgando driver corrompido: {inf_name}"
+                subprocess.run(["pnputil", "/delete-driver", inf_name, "/uninstall", "/force"], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                yield "  > ⚠️ INF não encontrado para purga direta."
+                
+            yield "  > 🔄 Forçando Scan de Hardware (PnP Enum)..."
+            subprocess.run(["pnputil", "/scan-devices"], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            yield "  > ✅ Hard Purge concluído. Verifique o gerenciador de dispositivos."
+
+    yield "> 🚀 Protocolo de Ressuscitação Finalizado."

@@ -13,9 +13,11 @@ APPX_BLOATWARES = ["Microsoft.BingNews", "Microsoft.GetHelp", "Microsoft.Getstar
                    "Microsoft.XboxGamingOverlay", "Microsoft.ZuneVideo", "Microsoft.YourPhone"]
 
 def get_appx_packages():
-    cmd = ["powershell", "-NoProfile", "-Command", "Get-AppxPackage | Select-Object Name, PackageFullName | ConvertTo-Json"]
+    # Coleta todos os Appx que não são frameworks nem são fixos do sistema
+    cmd = ["powershell", "-NoProfile", "-Command",
+           "Get-AppxPackage | Where-Object { $_.IsFramework -eq $false -and $_.NonRemovable -eq $false } | Select-Object Name, PackageFullName | ConvertTo-Json -Compress"]
     try:
-        p = subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, capture_output=True, text=True)
+        p = subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, capture_output=True, text=True, timeout=15)
         if p.stdout.strip():
             data = json.loads(p.stdout)
             if isinstance(data, dict):
@@ -76,18 +78,19 @@ def get_installed_apps():
         except OSError:
             continue
             
-    # Appx Packages (Bloatware Nativo)
+    # Appx Packages (Todos os pacotes não essenciais/removíveis)
     appx_list = get_appx_packages()
     for appx in appx_list:
         name = appx.get("Name", "")
         fullname = appx.get("PackageFullName", "")
-        if name and fullname and any(b.lower() in name.lower() for b in APPX_BLOATWARES):
+        if name and fullname:
+            is_bloat = any(b.lower() in name.lower() for b in APPX_BLOATWARES)
             apps.append({
-                "name": f"[Nativo] {name}",
+                "name": f"[UWP] {name}",
                 "size_mb": 0,
                 "uninstall_string": f"APPX:{fullname}",
                 "install_location": "",
-                "is_bloatware": True
+                "is_bloatware": is_bloat
             })
             
     # Remove duplicates
@@ -139,3 +142,20 @@ def uninstall_multiple(app_list, status_callback=None):
         run_uninstall(app['uninstall_string'], status_callback)
     if status_callback:
         status_callback("Processo de desinstalação finalizado!")
+
+def nuke_bloatware():
+    """Varre e remove silenciosamente bloatwares modernos."""
+    yield "> 🚀 INICIANDO NUKE BLOATWARE..."
+    apps = get_installed_apps()
+    bloatwares = [app for app in apps if app.get('is_bloatware')]
+    
+    if not bloatwares:
+        yield "> ✅ Nenhum bloatware detectado. Sistema limpo."
+        return
+        
+    for app in bloatwares:
+        name = app['name']
+        yield f"> 🗑️ Removendo {name}..."
+        run_uninstall(app['uninstall_string'], None)
+        
+    yield f"> ✅ NUKE FINALIZADO: {len(bloatwares)} itens removidos com sucesso."

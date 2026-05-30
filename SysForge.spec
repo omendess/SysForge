@@ -1,16 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('gui/Media', 'gui/Media'),
-        ('icon.ico', '.'),
-        ('icon.png', '.'),
-        ('logo_mlabs.png', '.'),
-        ('OfficeInstall', 'OfficeInstall'),
-    ],
+    datas=[('gui', 'gui'), ('gear', 'gear'), ('worker', 'worker'), ('version.json', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -40,5 +35,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['icon.ico'],
 )

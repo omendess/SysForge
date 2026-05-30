@@ -93,53 +93,86 @@ def get_startup_items():
 def get_scheduled_tasks():
     """
     Retorna tarefas agendadas relevantes (exclui tarefas da Microsoft/sistema).
-    Usa schtasks /query /fo CSV para compatibilidade universal.
+    Usa PowerShell Get-ScheduledTask para melhor performance (sem /v pesado).
+    Fallback para schtasks sem /v se PowerShell falhar.
     """
     tasks = []
+    
+    # Estratégia 1: PowerShell (rápido, ~1-2s)
+    try:
+        ps_cmd = (
+            "Get-ScheduledTask | Where-Object { $_.TaskPath -notlike '*\\Microsoft\\*' -and $_.TaskPath -notlike '*\\Windows\\*' } | "
+            "Select-Object TaskName, TaskPath, State | ConvertTo-Json -Compress"
+        )
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
+            creationflags=CREATE_NO_WINDOW, capture_output=True, text=True,
+            timeout=15
+        )
+        if result.stdout.strip():
+            import json
+            data = json.loads(result.stdout)
+            if isinstance(data, dict):
+                data = [data]
+            
+            seen = set()
+            for item in data:
+                name = item.get("TaskName", "")
+                path = item.get("TaskPath", "") + name
+                state = str(item.get("State", ""))
+                
+                if not name or name in seen:
+                    continue
+                seen.add(name)
+                
+                # State: 3=Ready, 4=Running, 1=Disabled
+                state_map = {"3": "Pronta", "4": "Em execução", "1": "Desabilitada", "2": "Enfileirada"}
+                state_str = state_map.get(state, state)
+                enabled = state not in ("1", "Disabled", "Desabilitada")
+                
+                tasks.append({
+                    "name":     name,
+                    "path":     path,
+                    "command":  path,
+                    "scope":    "Task",
+                    "status":   state_str,
+                    "next_run": "—",
+                    "trigger":  "—",
+                    "author":   "—",
+                    "enabled":  enabled,
+                    "state":    state_str,
+                })
+            
+            return sorted(tasks, key=lambda x: x["name"].lower())
+    except Exception:
+        pass
+    
+    # Estratégia 2: schtasks SEM /v (fallback, mais rápido que com /v)
     try:
         result = subprocess.run(
-            ["schtasks", "/query", "/fo", "CSV", "/v"],
+            ["schtasks", "/query", "/fo", "CSV"],
             creationflags=CREATE_NO_WINDOW, capture_output=True, text=True,
-            encoding="cp850", errors="replace", timeout=30
+            encoding="cp850", errors="replace", timeout=15
         )
         lines = result.stdout.splitlines()
         if not lines:
             return tasks
 
-        # Descobre índices das colunas no cabeçalho
-        header = lines[0].replace('"', '').split(",")
-        def col(name_part):
-            for i, h in enumerate(header):
-                if name_part.lower() in h.lower():
-                    return i
-            return -1
-
-        idx_name    = col("nome da tarefa") or col("taskname") or col("task name") or 0
-        idx_status  = col("status") or col("scheduled task state") or 2
-        idx_next    = col("próxima") or col("next run") or 3
-        idx_trigger = col("gatilho") or col("trigger") or col("schedule type") or 6
-        idx_author  = col("autor") or col("author") or -1
-
         seen = set()
         for line in lines[1:]:
-            if not line.strip() or line.startswith('"Nenhuma tarefa'):
+            if not line.strip():
                 continue
             parts = [p.strip('"') for p in line.split('","')]
-            if len(parts) <= max(idx_name, idx_status):
+            if len(parts) < 2:
                 continue
 
-            task_name = parts[idx_name] if idx_name < len(parts) else ""
-            status    = parts[idx_status] if idx_status < len(parts) else "—"
-            next_run  = parts[idx_next]  if idx_next  < len(parts) else "—"
-            trigger   = parts[idx_trigger] if idx_trigger < len(parts) else "—"
-            author    = parts[idx_author] if idx_author > 0 and idx_author < len(parts) else "—"
+            task_name = parts[0] if parts else ""
+            status = parts[2] if len(parts) > 2 else "—"
 
-            # Filtra tarefas do sistema Microsoft
             lower = task_name.lower()
             if any(x in lower for x in ["\\microsoft\\", "\\windows\\"]):
                 continue
 
-            # Limpa o nome da tarefa (remove path)
             display = task_name.split("\\")[-1] if "\\" in task_name else task_name
             if not display or display in seen:
                 continue
@@ -150,13 +183,15 @@ def get_scheduled_tasks():
             tasks.append({
                 "name":     display,
                 "path":     task_name,
+                "command":  task_name,
+                "scope":    "Task",
                 "status":   status,
-                "next_run": next_run,
-                "trigger":  trigger,
-                "author":   author,
+                "next_run": parts[1] if len(parts) > 1 else "—",
+                "trigger":  "—",
+                "author":   "—",
                 "enabled":  enabled,
+                "state":    status,
             })
-
     except Exception:
         pass
 

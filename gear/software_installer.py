@@ -98,8 +98,7 @@ def install_software(winget_id, status_callback=None):
     
     cmd = [
         "winget", "install", "-e", "--id", winget_id, 
-        "--accept-source-agreements", "--accept-package-agreements",
-        "--silent"
+        "--silent", "--accept-package-agreements", "--accept-source-agreements"
     ]
     try:
         from gear.window_enforcer import enforce_window_rules

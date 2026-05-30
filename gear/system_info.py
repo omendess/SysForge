@@ -43,6 +43,14 @@ def get_windows_info():
     arch     = _read_reg(winreg.HKEY_LOCAL_MACHINE,
                          r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
                          "PROCESSOR_ARCHITECTURE", "x64")
+                         
+    try:
+        build_num = int(build)
+        if build_num >= 22000 and "Windows 10" in product:
+            product = product.replace("Windows 10", "Windows 11")
+    except ValueError:
+        pass
+        
     return {
         "product": product,
         "edition": edition,

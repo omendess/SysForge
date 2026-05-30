@@ -122,6 +122,12 @@ class GenericWorker:
                 if item:
                     disable_startup_item(item, self._log_and_status)
             
+            elif task_type == "task_disable":
+                item = self.tasks.get("item")
+                if item:
+                    from gear.startup_manager import disable_scheduled_task
+                    disable_scheduled_task(item["path"], self._log_and_status)
+            
             elif task_type == "report":
                 self._log_and_status("📄 Gerando relatório...")
                 path = generate_report()
@@ -137,6 +143,13 @@ class GenericWorker:
                 if func:
                     func(self._log_and_status)
                     
+            elif task_type == "custom_generator":
+                func = self.tasks.get("generator_func")
+                if func:
+                    for msg in func():
+                        self._log_and_status(msg)
+                        time.sleep(0.05)
+                        
             self._log_and_status("Operação concluída com sucesso!")
             time.sleep(1)
         except Exception as e:

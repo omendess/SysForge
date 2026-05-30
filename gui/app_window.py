@@ -2,19 +2,14 @@ import customtkinter as ctk
 from tkinter import ttk
 import threading
 import os
+import sys
+
+# Lazy imports — módulos pesados carregados sob demanda para evitar travamento na inicialização
+# psutil é leve e usado no dashboard, importado aqui
 import psutil
-from gear.hardware_reader import get_all_hardware
-from gear.system_cleaner import get_temp_size_gb, get_windows_old_size_gb
+
+# Apenas o dicionário estático de softwares é importado eagerly (zero overhead)
 from gear.software_installer import SOFTWARE_DICT, PROFILES
-from gear.app_manager import get_installed_apps, open_location
-from gear.network_config import get_current_hostname
-from gear.power_config import get_current_plan
-from gear.wallpaper import find_wallpapers_on_pendrive
-from gear.startup_manager import get_startup_items, get_scheduled_tasks, disable_startup_item, disable_scheduled_task
-from gear.windows_tweaks import get_current_tweak_states
-from gear.office_checker import get_office_info
-from gear.system_info import get_full_system_report
-from gear.system_repair import force_restore_point, repair_sfc_dism, repair_disk_chkdsk, reset_network, reset_windows_update, scan_network_devices
 from worker.thread_manager import GenericWorker, LOG
 
 # --- Design Tokens ---
@@ -44,28 +39,34 @@ class AppWindow(ctk.CTk):
         w, h = 1280, 720
         self.resizable(False, False)
         
-        # Seta o Ícone
-        import sys, os
+        # Seta o Ícone (apenas .ico — contém todas as resoluções 16/32/48/64/128/256)
         base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         ico_path = os.path.join(base_dir, "icon.ico")
-        png_path = os.path.join(base_dir, "icon.png")
         
         try:
             if os.path.exists(ico_path):
                 self.iconbitmap(ico_path)
-            
-            if os.path.exists(png_path):
-                import tkinter as tk
-                img = tk.PhotoImage(file=png_path)
-                self.iconphoto(False, img)
+                # Usar Pillow para setar iconphoto corretamente (suporta RGBA)
+                try:
+                    from PIL import Image, ImageTk
+                    import tkinter as tk
+                    png_path = os.path.join(base_dir, "icon.png")
+                    if os.path.exists(png_path):
+                        pil_img = Image.open(png_path).convert("RGBA")
+                        # Criar múltiplos tamanhos para o Windows usar o melhor
+                        self._icon_photos = []
+                        for size in [64, 32, 16]:
+                            resized = pil_img.resize((size, size), Image.LANCZOS)
+                            photo = ImageTk.PhotoImage(resized)
+                            self._icon_photos.append(photo)
+                        self.iconphoto(True, *self._icon_photos)
+                except ImportError:
+                    pass
         except Exception:
             pass
 
-        sw = self.winfo_screenwidth()
-        sh = self.winfo_screenheight()
-        x = (sw - w) // 2
-        y = (sh - h) // 2
-        self.geometry(f"{w}x{h}+{x}+{y}")
+        from gui.utils import center_window
+        center_window(self, w, h)
             
         self.configure(fg_color=BG_MAIN)
         self.grid_rowconfigure(0, weight=1)
@@ -73,16 +74,32 @@ class AppWindow(ctk.CTk):
         self._build_sidebar()
         self._build_views()
         
-        # Elementos Táticos (HUD)
-        self.lbl_lat_lon = ctk.CTkLabel(self, text="LAT: 15.6014S\nLON: 56.0978W", font=("Consolas", 9), text_color="#A0A0A0", justify="left")
-        self.lbl_lat_lon.place(relx=0.98, rely=0.03, anchor="ne")
-        
-        self.lbl_track_id = ctk.CTkLabel(self, text="SYS.TRACKING_ID: [M-LABS-OP-01]", font=("Consolas", 9), text_color="#A0A0A0")
-        self.lbl_track_id.place(relx=0.98, rely=0.97, anchor="se")
-        
-        # Linhas decorativas horizontais removidas para evitar corte nos textos
-
         self.select_view("dashboard")
+        
+        # HUD Tático sempre por cima de tudo
+        self.after(100, self._draw_tactical_hud)
+
+    def _draw_tactical_hud(self):
+        # Grid lines (linhas finas cruzando o fundo)
+        line_v = ctk.CTkFrame(self, width=1, fg_color="#E0E0E0", corner_radius=0)
+        line_v.place(relx=0.985, rely=0, relheight=1, anchor="n")
+        
+        line_h = ctk.CTkFrame(self, height=1, fg_color="#E0E0E0", corner_radius=0)
+        line_h.place(relx=0, rely=0.04, relwidth=1, anchor="w")
+        
+        # Coordenadas
+        lbl_lat_lon = ctk.CTkLabel(self, text="LAT: 15.6014S | LON: 56.0978W", font=("Consolas", 9), text_color="#808080")
+        lbl_lat_lon.place(relx=0.98, rely=0.015, anchor="ne")
+        
+        # Tracking ID
+        lbl_track = ctk.CTkLabel(self, text="SYS.TRACKING_ID: [M-LABS-OP-01]", font=("Consolas", 9), text_color="#808080")
+        lbl_track.place(relx=0.98, rely=0.96, anchor="se")
+        
+        # Força para a frente de todos os frames das views
+        line_v.lift()
+        line_h.lift()
+        lbl_lat_lon.lift()
+        lbl_track.lift()
 
     # ─── Sidebar ────────────────────────────────────────────
     def _build_sidebar(self):
@@ -97,14 +114,10 @@ class AppWindow(ctk.CTk):
 
         # Logo
         import PIL.Image
-        import os, sys
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo_mlabs.png")
-        if not os.path.exists(logo_path):
-            logo_path = r"C:\Users\o_men\Downloads\logo Mlabs.png"
+        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        logo_path = os.path.join(base_dir, "logo_mlabs.png")
             
         try:
-            if hasattr(sys, '_MEIPASS'):
-                logo_path = os.path.join(sys._MEIPASS, "logo_mlabs.png")
             
             # Carregar a imagem para descobrir a proporção e não distorcer
             img_pil = PIL.Image.open(logo_path)
@@ -122,7 +135,6 @@ class AppWindow(ctk.CTk):
         sep = ctk.CTkFrame(sb, height=1, fg_color=BORDER, corner_radius=0)
         sep.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
 
-        self.nav_btns = {}
         self.nav_btns = {}
         self.nav_frames = {}
         self.nav_indicators = {}
@@ -231,16 +243,31 @@ class AppWindow(ctk.CTk):
     # ─── Views Container ────────────────────────────────────
     def _build_views(self):
         self.views = {}
-        for key, builder in [("dashboard",self._build_dashboard),("operations",self._build_operations),("softwares",self._build_softwares),("tweaks",self._build_tweaks),("app_manager",self._build_app_manager),("startup",self._build_startup),("repair",self._build_repair),("logs",self._build_logs),("info",self._build_info)]:
-            f = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
-            self.views[key] = f
-            builder(f)
+        self._view_builders = {
+            "dashboard": self._build_dashboard,
+            "operations": self._build_operations,
+            "softwares": self._build_softwares,
+            "tweaks": self._build_tweaks,
+            "app_manager": self._build_app_manager,
+            "startup": self._build_startup,
+            "repair": self._build_repair,
+            "logs": self._build_logs,
+            "info": self._build_info,
+        }
+        self._views_built = set()
 
     def select_view(self, name):
         self._current_view = name
+        # Lazy-build: construir view apenas quando acessada pela primeira vez
+        if name not in self._views_built and name in self._view_builders:
+            f = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+            self.views[name] = f
+            self._view_builders[name](f)
+            self._views_built.add(name)
         for f in self.views.values():
             f.grid_forget()
-        self.views[name].grid(row=0, column=1, sticky="nsew", padx=28, pady=28)
+        if name in self.views:
+            self.views[name].grid(row=0, column=1, sticky="nsew", padx=28, pady=28)
         for k, b in self.nav_btns.items():
             ic = self.nav_icons.get(k)
             if k == name:
@@ -253,12 +280,16 @@ class AppWindow(ctk.CTk):
                 self.nav_indicators[k].configure(fg_color="transparent")
                 b.configure(fg_color="transparent", text_color="#000000")
                 if ic: ic.configure(text_color="#000000")
+        # Parar hw_loop ao sair do dashboard para evitar CPU ociosa e after() em widgets mortos
+        if name != "dashboard":
+            self._hw_loop_running = False
+
         if name == "dashboard":
             self._start_hw_loop()
         elif name == "operations":
             threading.Thread(target=self._load_operations, daemon=True).start()
         elif name == "app_manager":
-            if not self.app_data:
+            if not getattr(self, 'app_data', None):
                 threading.Thread(target=self._load_apps, daemon=True).start()
         elif name == "startup":
             threading.Thread(target=self._load_startup, daemon=True).start()
@@ -331,29 +362,34 @@ class AppWindow(ctk.CTk):
         self._last_net = 0
         self._last_disk = 0
         self._hw_loop_running = False
+        self._hw_cache = None
+        self._hw_loop_cycle = 0
 
     def _start_hw_loop(self):
         if not getattr(self, "_hw_loop_running", False):
             self._hw_loop_running = True
-            import threading
             threading.Thread(target=self._hw_loop, daemon=True).start()
 
     def _hw_loop(self):
-        import time, psutil
-        from gear.hardware_reader import get_all_hardware
+        import time
         
-        hw = get_all_hardware()
-        cpu_name = hw.get("CPU", "Desconhecido")
-        ram_total = hw.get("RAM", "0 GB")
-        gpu_name = hw.get("GPU", "Desconhecido")
+        # Cache hardware estático (não muda durante a sessão)
+        if not self._hw_cache:
+            from gear.hardware_reader import get_all_hardware
+            self._hw_cache = get_all_hardware()
+        
+        hw = self._hw_cache
+        cpu_name = hw.get("CPU_GUI", "Desconhecido")
+        ram_total = hw.get("RAM_GUI", "0 GB")
+        gpu_name = hw.get("GPU_GUI", "Desconhecido")
         
         # Shorten names to fit
         cpu_name = cpu_name[:25] + "..." if len(cpu_name) > 25 else cpu_name
         gpu_name = gpu_name[:25] + "..." if len(gpu_name) > 25 else gpu_name
             
-        self.after(0, lambda: self.lbl_cpu.configure(text=cpu_name))
-        self.after(0, lambda: self.lbl_ram.configure(text=f"Total: {ram_total}"))
-        self.after(0, lambda: self.lbl_gpu.configure(text=gpu_name))
+        self.after(0, lambda cn=cpu_name: self.lbl_cpu.configure(text=cn))
+        self.after(0, lambda rt=ram_total: self.lbl_ram.configure(text=f"Total: {rt}"))
+        self.after(0, lambda gn=gpu_name: self.lbl_gpu.configure(text=gn))
         self.after(0, lambda: self.lbl_disk.configure(text="Transferência (Leitura + Escrita)"))
         self.after(0, lambda: self.lbl_net.configure(text="Tráfego Agregado"))
 
@@ -397,9 +433,14 @@ class AppWindow(ctk.CTk):
             cvs.create_rectangle(0, h/2 - 10, fw, h/2 + 10, fill="#D50000", outline="#000000")
             cvs.create_text(w/2, h/2, text=f"{pct:.1f}%", font=("Consolas", 11, "bold"), fill="#FFFFFF" if pct > 50 else "#000000")
 
+        # Cache de processos (atualizado a cada 5 ciclos para evitar overhead)
+        cached_proc_str = "Carregando..."
+        
         while getattr(self, "_hw_loop_running", False):
             try:
-                # CPU / RAM
+                self._hw_loop_cycle += 1
+                
+                # CPU / RAM (leve, a cada ciclo)
                 c = psutil.cpu_percent(interval=None)
                 r = psutil.virtual_memory().percent
                 
@@ -421,17 +462,23 @@ class AppWindow(ctk.CTk):
                 self.net_hist.append(mbps); self.net_hist.pop(0)
                 self.disk_hist.append(mbps_disk); self.disk_hist.pop(0)
                 
-                # Processos (RAM)
-                procs = []
-                for p in psutil.process_iter(['name', 'memory_percent']):
+                # Processos (RAM) — PESADO, só atualiza a cada 5 ciclos
+                if self._hw_loop_cycle % 5 == 0:
                     try:
-                        if p.info['memory_percent'] is not None:
-                            procs.append((p.info['name'], p.info['memory_percent']))
-                    except: pass
-                procs = sorted(procs, key=lambda x: x[1], reverse=True)[:5]
-                proc_str = "\n".join([f"{name[:15]:<15} {pct:>5.1f}%" for name, pct in procs])
+                        procs = []
+                        for p in psutil.process_iter(['name', 'memory_percent']):
+                            try:
+                                mp = p.info['memory_percent']
+                                if mp is not None and mp > 0.1:
+                                    procs.append((p.info['name'], mp))
+                            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                                pass
+                        procs = sorted(procs, key=lambda x: x[1], reverse=True)[:5]
+                        cached_proc_str = "\n".join([f"{name[:15]:<15} {pct:>5.1f}%" for name, pct in procs])
+                    except Exception:
+                        pass
                 
-                # Uptime
+                # Uptime (dados estáticos, atualizados a cada ciclo)
                 bt = psutil.boot_time()
                 uptime = time.time() - bt
                 d, r_rem = divmod(uptime, 86400)
@@ -441,112 +488,131 @@ class AppWindow(ctk.CTk):
                 # Energia / Saúde
                 bat = psutil.sensors_battery()
                 if bat:
-                    p = "AC (Conectado)" if bat.power_plugged else "Bateria"
-                    pow_str = f"FONTE:\n{p}\n\nCARGA:\n{bat.percent}%"
+                    p_txt = "AC (Conectado)" if bat.power_plugged else "Bateria"
+                    pow_str = f"FONTE:\n{p_txt}\n\nCARGA:\n{bat.percent}%"
                 else:
                     pow_str = "FONTE:\nAC (Desktop)\n\nSTATUS:\nEnergizado"
                 
-                # Schedule Redraws
-                self.after(0, lambda: draw_line(self.cvs_cpu, self.cpu_hist, 100))
-                self.after(0, lambda: draw_line(self.cvs_ram, self.ram_hist, 100))
-                self.after(0, lambda: draw_line(self.cvs_disk, self.disk_hist, max(10, max(self.disk_hist)), "MB/s"))
-                self.after(0, lambda: draw_line(self.cvs_net, self.net_hist, max(10, max(self.net_hist)), "Mbps"))
-                self.after(0, lambda: draw_bar(self.cvs_gpu, 2.0 + c * 0.05)) # Low fake GPU usage for aesthetic
+                # Schedule Redraws — captura valores em closures explícitas
+                _cpu_h = list(self.cpu_hist)
+                _ram_h = list(self.ram_hist)
+                _disk_h = list(self.disk_hist)
+                _disk_max = max(10, max(_disk_h))
+                _net_h = list(self.net_hist)
+                _net_max = max(10, max(_net_h))
+                _gpu_pct = 2.0 + c * 0.05
+                _proc_s = cached_proc_str
+                _up_s = uptime_str
+                _pow_s = pow_str
                 
-                self.after(0, lambda: self.txt_procs.configure(text=proc_str))
-                self.after(0, lambda: self.txt_uptime.configure(text=uptime_str))
-                self.after(0, lambda: self.txt_power.configure(text=pow_str))
+                self.after(0, lambda h=_cpu_h: draw_line(self.cvs_cpu, h, 100))
+                self.after(0, lambda h=_ram_h: draw_line(self.cvs_ram, h, 100))
+                self.after(0, lambda h=_disk_h, m=_disk_max: draw_line(self.cvs_disk, h, m, "MB/s"))
+                self.after(0, lambda h=_net_h, m=_net_max: draw_line(self.cvs_net, h, m, "Mbps"))
+                self.after(0, lambda g=_gpu_pct: draw_bar(self.cvs_gpu, g))
                 
-            except:
+                self.after(0, lambda s=_proc_s: self.txt_procs.configure(text=s))
+                self.after(0, lambda s=_up_s: self.txt_uptime.configure(text=s))
+                self.after(0, lambda s=_pow_s: self.txt_power.configure(text=s))
+                
+            except Exception:
                 pass
-            time.sleep(1)
+            time.sleep(1.5)  # 1.5s é suficiente para monitoring sem overhead
 
 
     def _build_operations(self, view):
         header = ctk.CTkFrame(view, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 6))
+        header.pack(fill="x", pady=(0, 2))
         self._section_title(header, "Operações", "Painel de controle de implantação")
 
-        scroll = ctk.CTkScrollableFrame(view, fg_color="transparent")
+        scroll = ctk.CTkFrame(view, fg_color="transparent")
         scroll.pack(fill="both", expand=True)
 
         # Actions 2-col
         ag = ctk.CTkFrame(scroll, fg_color="transparent")
-        ag.pack(fill="x", pady=(6,0))
+        ag.pack(fill="x", pady=(2,0))
         ag.grid_columnconfigure((0,1), weight=1, uniform="act")
 
         # Clean card
         cc = self._card(ag)
         cc.grid(row=0, column=0, padx=(0,7), sticky="nsew")
-        ctk.CTkLabel(cc, text="LIMPEZA DE SISTEMA", font=("Helvetica", 14, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(10,6))
+        ctk.CTkLabel(cc, text="LIMPEZA DE SISTEMA", font=("Helvetica", 14, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(6,2))
 
         self.chk_temp = ctk.CTkCheckBox(cc, text="LIMPAR PASTAS TEMPORÁRIAS", font=("Consolas", 13), corner_radius=0, fg_color="#D50000", border_color="#000000", checkmark_color="#FFFFFF", hover_color="#B71C1C")
-        self.chk_temp.pack(anchor="w", padx=24, pady=4)
+        self.chk_temp.pack(anchor="w", padx=24, pady=2)
         self.chk_temp.select()
         self.lbl_temp = ctk.CTkLabel(cc, text="      ⏳ Calculando...", font=("Consolas", 11), text_color="#000000")
-        self.lbl_temp.pack(anchor="w", padx=24, pady=(0,10))
-
+        self.lbl_temp.pack(anchor="w", padx=24, pady=(0,2))
+        
         self.chk_winold = ctk.CTkCheckBox(cc, text="REMOVER WINDOWS.OLD", font=("Consolas", 13), corner_radius=0, fg_color="#D50000", border_color="#000000", checkmark_color="#FFFFFF", hover_color="#B71C1C")
-        self.chk_winold.pack(anchor="w", padx=24, pady=4)
+        self.chk_winold.pack(anchor="w", padx=24, pady=2)
         self.lbl_winold = ctk.CTkLabel(cc, text="      ⏳ Calculando...", font=("Consolas", 11), text_color="#000000")
-        self.lbl_winold.pack(anchor="w", padx=24, pady=(0,20))
+        self.lbl_winold.pack(anchor="w", padx=24, pady=(0,4))
+        
+        ctk.CTkFrame(cc, height=1, fg_color=BORDER, corner_radius=0).pack(fill="x", padx=16, pady=(0,4))
+        
+        self.btn_purge = self._action_btn(cc, "EXECUTAR LIMPEZA PROFUNDA", self._run_system_purge)
+        self.btn_purge.pack(fill="x", padx=16, pady=(0, 4))
+        
+        self.lbl_purge_st = ctk.CTkLabel(cc, text="      Aguardando ação...", font=("Consolas", 11), text_color="#000000")
+        self.lbl_purge_st.pack(anchor="w", padx=24, pady=(0,4))
 
         # Office card
         oc = self._card(ag)
         oc.grid(row=0, column=1, padx=(7,0), sticky="nsew")
         oc_header = ctk.CTkFrame(oc, fg_color="transparent")
-        oc_header.pack(fill="x", padx=20, pady=(18, 4))
+        oc_header.pack(fill="x", padx=20, pady=(6, 2))
         ctk.CTkLabel(oc_header, text="OFFICE LTSC", font=("Helvetica", 14, "bold"), text_color="#000000").pack(side="left")
         self.lbl_office_build = ctk.CTkLabel(oc_header, text="", font=("Consolas", 10), text_color="#000000")
         self.lbl_office_build.pack(side="right")
         # Container dinâmico para os produtos
         self.office_products_frame = ctk.CTkFrame(oc, fg_color="transparent")
-        self.office_products_frame.pack(fill="x", padx=16, pady=(0, 6))
+        self.office_products_frame.pack(fill="x", padx=16, pady=(0, 2))
         ctk.CTkLabel(self.office_products_frame, text="⏳ Verificando...", font=("Consolas", 11), text_color="#000000").pack(anchor="w")
         self.chk_office = ctk.CTkCheckBox(oc, text="INSTALAR E ATIVAR", font=("Consolas", 13, "bold"), corner_radius=0, fg_color="#D50000", border_color="#000000", checkmark_color="#FFFFFF", hover_color="#B71C1C")
-        self.chk_office.pack(anchor="w", padx=20, pady=(6, 18))
+        self.chk_office.pack(anchor="w", padx=20, pady=(4, 6))
         
         # Utilities ROW
         ug = ctk.CTkFrame(scroll, fg_color="transparent")
-        ug.pack(fill="x", pady=(14,0))
+        ug.pack(fill="x", pady=(6,0))
         ug.grid_columnconfigure((0,1,2,3), weight=1, uniform="util")
 
         # Hostname card
         hc = self._card(ug); hc.grid(row=0,column=0,padx=(0,5),sticky="nsew")
-        ctk.CTkLabel(hc,text="HOSTNAME",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(10,6))
-        self.hostname_entry = ctk.CTkEntry(hc,placeholder_text="NOME-PC",height=32,corner_radius=0,border_width=1,border_color="#000000",fg_color="#FFFFFF",text_color="#000000",font=("Consolas", 12))
-        self.hostname_entry.pack(fill="x",padx=14,pady=(0,6))
-        self._action_btn(hc, "RENOMEAR", self._set_hostname).pack(fill="x",padx=14,pady=(0,14))
+        ctk.CTkLabel(hc,text="HOSTNAME",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(6,2))
+        self.hostname_entry = ctk.CTkEntry(hc,placeholder_text="NOME-PC",height=30,corner_radius=0,border_width=1,border_color="#000000",fg_color="#FFFFFF",text_color="#000000",font=("Consolas", 12))
+        self.hostname_entry.pack(fill="x",padx=14,pady=(0,4))
+        self._action_btn(hc, "RENOMEAR", self._set_hostname).pack(fill="x",padx=14,pady=(0,6))
 
         # Report card
         rc = self._card(ug); rc.grid(row=0,column=1,padx=5,sticky="nsew")
-        ctk.CTkLabel(rc,text="RELATÓRIO",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(10,6))
-        ctk.CTkLabel(rc,text="Exportar specs\npara a Área de Trabalho",font=("Consolas", 11),text_color="#000000",justify="left").pack(anchor="w",padx=14,pady=(0,6))
-        self._action_btn(rc, "GERAR TXT", self._gen_report).pack(fill="x",padx=14,pady=(0,14))
+        ctk.CTkLabel(rc,text="RELATÓRIO",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(6,2))
+        ctk.CTkLabel(rc,text="Exportar specs\npara Área de Trabalho",font=("Consolas", 11),text_color="#000000",justify="left").pack(anchor="w",padx=14,pady=(0,4))
+        self._action_btn(rc, "GERAR TXT", self._gen_report).pack(fill="x",padx=14,pady=(0,6))
 
         # WinUpdate card
         wu = self._card(ug); wu.grid(row=0,column=2,padx=5,sticky="nsew")
-        ctk.CTkLabel(wu,text="WINDOWS UPDATE",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(10,6))
-        ctk.CTkLabel(wu,text="Forçar checagem\ne instalação",font=("Consolas", 11),text_color="#000000",justify="left").pack(anchor="w",padx=14,pady=(0,6))
+        ctk.CTkLabel(wu,text="WINDOWS UPDATE",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(6,2))
+        ctk.CTkLabel(wu,text="Forçar checagem\ne instalação",font=("Consolas", 11),text_color="#000000",justify="left").pack(anchor="w",padx=14,pady=(0,4))
         self.btn_wupd = self._action_btn(wu, "ATUALIZAR", self._run_wupdate)
-        self.btn_wupd.pack(fill="x",padx=14,pady=(0,14))
+        self.btn_wupd.pack(fill="x",padx=14,pady=(0,6))
 
         # Power card
         pc = self._card(ug); pc.grid(row=0,column=3,padx=(5,0),sticky="nsew")
-        ctk.CTkLabel(pc,text="ENERGIA",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(10,6))
+        ctk.CTkLabel(pc,text="ENERGIA",font=("Helvetica", 13, "bold"),text_color="#000000").pack(anchor="w",padx=14,pady=(6,2))
         self.lbl_power = ctk.CTkLabel(pc,text="Carregando...",font=("Consolas", 11),text_color="#000000")
-        self.lbl_power.pack(anchor="w",padx=14,pady=(0,6))
-        self._action_btn(pc, "ALTO DESEMPENHO", self._set_power).pack(fill="x",padx=14,pady=(0,14))
+        self.lbl_power.pack(anchor="w",padx=14,pady=(0,4))
+        self._action_btn(pc, "DESEMPENHO", self._set_power).pack(fill="x",padx=14,pady=(0,6))
 
         # Footer 
         ft = ctk.CTkFrame(scroll, fg_color="transparent")
-        ft.pack(fill="x", pady=(14, 4))
-        self.btn_dash = ctk.CTkButton(ft, text="INICIAR IMPLANTAÇÃO", height=48, font=("Helvetica", 16, "bold"), fg_color="#D50000", text_color="#FFFFFF", hover_color="#B71C1C", border_width=1, border_color="#000000", corner_radius=0, command=self._run_dash)
-        self.btn_dash.pack(fill="x", pady=(0,8))
+        ft.pack(fill="x", pady=(6, 2))
+        self.btn_dash = ctk.CTkButton(ft, text="INICIAR IMPLANTAÇÃO", height=42, font=("Helvetica", 16, "bold"), fg_color="#D50000", text_color="#FFFFFF", hover_color="#B71C1C", border_width=1, border_color="#000000", corner_radius=0, command=self._run_dash)
+        self.btn_dash.pack(fill="x", pady=(0,6))
         self.dash_prog = ctk.CTkProgressBar(ft, height=5, corner_radius=0, progress_color="#D50000", fg_color="#E0E0E0", border_width=1, border_color="#000000")
         self.dash_prog.pack(fill="x"); self.dash_prog.set(0); self.dash_prog.pack_forget()
         self.lbl_dash_st = ctk.CTkLabel(ft, text="PRONTO PARA OPERAR.", font=("Consolas", 12), text_color="#000000")
-        self.lbl_dash_st.pack(pady=(0,6))
+        self.lbl_dash_st.pack(pady=(0,4))
 
     def _load_operations(self):
         import threading
@@ -571,7 +637,7 @@ class AppWindow(ctk.CTk):
         else:
             self.after(0, lambda: [self.lbl_winold.configure(text="      Não encontrado"), self.chk_winold.configure(state="disabled")])
 
-        threading.Thread(target=self._load_office_info, daemon=True).start()
+        self.after(0, self._load_office_info)
 
     def _load_office_info(self):
         from gear.office_checker import get_office_info
@@ -634,18 +700,38 @@ class AppWindow(ctk.CTk):
         GenericWorker({"type":"report"}, lambda m: self.after(0,lambda: self.lbl_dash_st.configure(text=m)), None).start()
 
     def _run_wupdate(self):
-        def _inner_btn_cfg(container, **kw):
-            for w in container.winfo_children():
-                if isinstance(w, ctk.CTkButton): w.configure(**kw)
-        _inner_btn_cfg(self.btn_wupd, state="disabled")
-        GenericWorker({"type":"winupdate"}, lambda m: self.after(0,lambda: self.lbl_dash_st.configure(text=m)), lambda: self.after(0,lambda: _inner_btn_cfg(self.btn_wupd, state="normal"))).start()
+        # Como _action_btn retorna um frame com eventos, evitamos mexer no estado interno dele
+        # Apenas alteramos o label_dash_st para indicar que está rodando.
+        GenericWorker({"type":"winupdate"}, lambda m: self.after(0,lambda: self.lbl_dash_st.configure(text=m)), lambda: self.after(0,lambda: self.lbl_dash_st.configure(text="✅ Windows Update finalizado."))).start()
 
 
     def _set_power(self):
         GenericWorker({"type":"power"}, lambda m: self.after(0,lambda: self.lbl_dash_st.configure(text=m)), lambda: self.after(0,lambda: self.lbl_power.configure(text="Atual: Alto Desempenho"))).start()
 
-
-    # ═══════════════════════════════════════════════════════
+    def _run_system_purge(self):
+        do_temp = self.chk_temp.get()
+        do_old = self.chk_winold.get()
+        
+        def _purge_task():
+            import time
+            from gear.system_cleaner import clean_temp_folders, remove_windows_old, system_purge
+            
+            if do_temp:
+                yield "⏳ Limpando TEMP básica..."
+                clean_temp_folders()
+            if do_old:
+                yield "⏳ Removendo Windows.old..."
+                try: remove_windows_old()
+                except: pass
+                
+            yield "🚀 Iniciando System Purge Completo..."
+            for msg in system_purge():
+                yield msg
+                time.sleep(0.1)
+                
+        GenericWorker({"type": "custom_generator", "generator_func": _purge_task},
+                      lambda m: self.after(0, lambda: self.lbl_purge_st.configure(text=m)),
+                      lambda: self.after(1000, self._load_operations)).start()    # ═══════════════════════════════════════════════════════
     #  SOFTWARES
     # ═══════════════════════════════════════════════════════
     def _build_softwares(self, view):
@@ -719,7 +805,13 @@ class AppWindow(ctk.CTk):
         threading.Thread(target=self._check_installed_softwares, daemon=True).start()
 
     def _check_installed_softwares(self):
-        apps = get_installed_apps()
+        from gear.app_manager import get_installed_apps
+        
+        # Otimização: Cachear os apps instalados para não varrer o registro 2 vezes
+        if not getattr(self, 'app_data', None):
+            self.app_data = get_installed_apps()
+            
+        apps = self.app_data
         installed_names = [app["name"].lower() for app in apps]
         
         for cat, softs in SOFTWARE_DICT.items():
@@ -747,14 +839,24 @@ class AppWindow(ctk.CTk):
         header.pack(fill="x", pady=(0, 6))
         self._section_title(header, "Windows Tweaks", "Otimizações de privacidade e visual")
 
-        card = self._card(view)
-        card.pack(fill="x")
+        # Create a footer frame FIRST and pack it at the bottom so it's always visible
+        ft = ctk.CTkFrame(view, fg_color="transparent")
+        ft.pack(fill="x", side="bottom", pady=(12,0))
+        self.btn_twk = ctk.CTkButton(ft, text="APLICAR TWEAKS", height=48, font=("Arial", 16, "bold"), fg_color="#D50000", text_color="#FFFFFF", hover_color="#B71C1C", corner_radius=0, command=self._run_twk)
+        self.btn_twk.pack(fill="x")
+        self.lbl_twk_st = ctk.CTkLabel(ft, text="", text_color="#000000", font=("Consolas", 12))
+        self.lbl_twk_st.pack(pady=4)
+
+        card = ctk.CTkScrollableFrame(view, corner_radius=0, fg_color="#FFFFFF", border_width=1, border_color="#000000")
+        card.pack(fill="both", expand=True)
 
         self.tweak_vars = {}
         self.tweak_switches = {}
         tweaks = [
             ("disable_telemetry",       "🛡️  Desativar Telemetria",                    "Impede coleta de dados de uso pela Microsoft"),
             ("show_hidden_extensions",  "📂  Exibir Extensões e Itens Ocultos",         "Mostra arquivos ocultos e extensões no Explorer"),
+            ("dev_sanctuary",           "🛠️  Santuário do Desenvolvedor",             "WSL, OpenSSH, Processos Isolados, Ocultar Histórico"),
+            ("qol_matrix",              "⚡  Matriz Quality of Life (QoL)",            "Desempenho Máx, Fix Mouse, Win11 Start Left"),
             ("disable_bing_search",     "🔍  Desativar Pesquisa Web no Iniciar",        "Remove resultados do Bing no menu Iniciar"),
             ("enable_dark_mode",        "🌙  Forçar Modo Escuro",                       "Aplica tema escuro em todo o sistema"),
             ("classic_context_menu",    "🖱️  Menu de Contexto Clássico",               "Restaura o menu de botão direito antigo (Win 11)"),
@@ -782,17 +884,11 @@ class AppWindow(ctk.CTk):
             if i < len(tweaks) - 1:
                 ctk.CTkFrame(card, height=1, fg_color=BORDER).pack(fill="x", padx=20)
 
-        ft = ctk.CTkFrame(view, fg_color="transparent")
-        ft.pack(fill="x", side="bottom", pady=(12,0))
-        self.btn_twk = ctk.CTkButton(ft, text="APLICAR TWEAKS", height=48, font=("Arial", 16, "bold"), fg_color="#D50000", text_color="#FFFFFF", hover_color="#B71C1C", corner_radius=0, command=self._run_twk)
-        self.btn_twk.pack(fill="x")
-        self.lbl_twk_st = ctk.CTkLabel(ft, text="", text_color="#000000", font=("Consolas", 12))
-        self.lbl_twk_st.pack(pady=4)
-
         # Inicia leitura após tudo renderizado
         threading.Thread(target=self._load_tweak_states, daemon=True).start()
 
     def _load_tweak_states(self):
+        from gear.windows_tweaks import get_current_tweak_states
         states = get_current_tweak_states()
         for key, val in states.items():
             if key in self.tweak_vars:
@@ -836,7 +932,8 @@ class AppWindow(ctk.CTk):
 
         # Botões
         self._action_btn(search_frame, "X", lambda: self.app_search_var.set(""), height=40).pack(side="left", padx=(0,6))
-        ctk.CTkButton(search_frame, text="BLOATWARES", width=120, height=40, corner_radius=0, fg_color="#D50000", border_width=1, border_color="#000000", text_color="#FFFFFF", hover_color="#B71C1C", font=("Helvetica", 12, "bold"), command=self._select_bloatware).pack(side="left", padx=(0,6))
+        ctk.CTkButton(search_frame, text="BLOATWARES", width=120, height=40, corner_radius=0, fg_color="#000000", border_width=1, border_color="#000000", text_color="#FFFFFF", hover_color="#333333", font=("Helvetica", 12, "bold"), command=self._select_bloatware).pack(side="left", padx=(0,6))
+        ctk.CTkButton(search_frame, text="NUKE BLOATWARES", width=140, height=40, corner_radius=0, fg_color="#D50000", border_width=1, border_color="#000000", text_color="#FFFFFF", hover_color="#B71C1C", font=("Helvetica", 12, "bold"), command=self._run_nuke).pack(side="left", padx=(0,6))
         self._action_btn(search_frame, "RELOAD", self._force_reload_apps, height=40).pack(side="left", padx=(0,6))
 
         self.lbl_app_count = ctk.CTkLabel(search_frame, text="", font=("Consolas", 12), text_color="#000000")
@@ -883,6 +980,7 @@ class AppWindow(ctk.CTk):
         self.app_selected = {}  # {nome_do_app: booleano}
 
     def _load_apps(self):
+        from gear.app_manager import get_installed_apps
         self.after(0, lambda: self.tree.delete(*self.tree.get_children()))
         self.after(0, lambda: self.lbl_app_st.configure(text="⏳ Carregando programas instalados..."))
         apps = get_installed_apps()
@@ -958,6 +1056,12 @@ class AppWindow(ctk.CTk):
     def _done_app(self):
         self.btn_app.configure(state="normal")
         self._force_reload_apps()
+
+    def _run_nuke(self):
+        from gear.app_manager import nuke_bloatware
+        GenericWorker({"type": "custom_generator", "generator_func": nuke_bloatware}, 
+                      lambda m: self.after(0, lambda: self.lbl_app_st.configure(text=m)), 
+                      lambda: self.after(0, self._done_app)).start()
 
     def _force_reload_apps(self):
         self.app_data = []
@@ -1062,7 +1166,7 @@ class AppWindow(ctk.CTk):
                          lambda: threading.Thread(target=self._load_startup, daemon=True).start(), 
                          height=34).pack(side="right", padx=4)
 
-        self.scroll_startup = ctk.CTkFrame(view, fg_color="#FFFFFF",
+        self.scroll_startup = ctk.CTkScrollableFrame(view, fg_color="#FFFFFF",
                                                      corner_radius=0, border_width=1,
                                                      border_color="#000000")
         self.scroll_startup.pack(fill="both", expand=True)
@@ -1094,6 +1198,7 @@ class AppWindow(ctk.CTk):
 
 
     def _load_startup(self):
+        from gear.startup_manager import get_startup_items, get_scheduled_tasks
         self.after(0, self._render_startup_loading)
         st_items = get_startup_items()
         ts_items = get_scheduled_tasks()
@@ -1120,7 +1225,12 @@ class AppWindow(ctk.CTk):
                          font=("Consolas", 14), text_color="#000000").pack(pady=40)
             return
 
-        for i, item in enumerate(items):
+        # Virtualização: limitar renderização a 50 itens para não travar a GUI
+        items_to_render = items[:50]
+        if len(items) > 50:
+            ctk.CTkLabel(self.scroll_startup, text=f"Mostrando 50 de {len(items)} itens. Refine a busca.", font=("Consolas", 11)).pack(pady=4)
+
+        for i, item in enumerate(items_to_render):
             bg = "#E5E7EB" if i % 2 == 0 else "transparent"
             row = ctk.CTkFrame(self.scroll_startup, fg_color=bg, corner_radius=0)
             row.pack(fill="x", padx=8, pady=1)
@@ -1370,13 +1480,14 @@ class AppWindow(ctk.CTk):
                 
             InterventionWorker(func, safe_log, is_revert).start()
 
-        from gear.intervention_matrix import fix_rede_falsa, fix_windows_update, fix_spooler_impressao, fix_explorer_congelado, fix_imagem_sistema, reverter_estado
+        from gear.intervention_matrix import fix_rede_falsa, fix_windows_update, fix_spooler_impressao, fix_explorer_congelado, fix_imagem_sistema, reverter_estado, ressuscitar_drivers
 
         _purge_btn(col_left_m, "[ PURGE ] PROTOCOLOS DE REDE", lambda: _run_intervention(fix_rede_falsa)).pack(fill="x", pady=6)
         _purge_btn(col_left_m, "[ PURGE ] WINDOWS UPDATE", lambda: _run_intervention(fix_windows_update)).pack(fill="x", pady=6)
         _purge_btn(col_left_m, "[ PURGE ] SPOOLER DE IMPRESSÃO", lambda: _run_intervention(fix_spooler_impressao)).pack(fill="x", pady=6)
         _purge_btn(col_left_m, "[ PURGE ] SHELL EXPLORER", lambda: _run_intervention(fix_explorer_congelado)).pack(fill="x", pady=6)
         _purge_btn(col_left_m, "[ PURGE ] IMAGEM DO SISTEMA (SFC/DISM)", lambda: _run_intervention(fix_imagem_sistema)).pack(fill="x", pady=6)
+        _purge_btn(col_left_m, "[ CURE ] RESSUSCITAR DRIVERS (PNP)", lambda: _run_intervention(ressuscitar_drivers)).pack(fill="x", pady=6)
         
         ctk.CTkFrame(col_left_m, height=1, fg_color="#000000").pack(fill="x", pady=10)
         
@@ -1559,24 +1670,33 @@ class AppWindow(ctk.CTk):
         self._diag_dev    = _section(col_right, "Ferramentas de Desenvolvimento")
 
         # Inicia a leitura do diagnóstico
+        self._diag_lock = threading.Lock()
         threading.Thread(target=self._load_diagnostics, daemon=True).start()
 
     def _load_diagnostics(self):
-        def _set_state(state, txt):
-            for w in self._diag_btn_container.winfo_children():
-                if isinstance(w, ctk.CTkButton):
-                    w.configure(state=state, text=txt)
-        self.after(0, lambda: _set_state("disabled", "⏳ Aguarde..."))
+        if not getattr(self, '_diag_lock', None):
+            self._diag_lock = threading.Lock()
+        if not self._diag_lock.acquire(blocking=False):
+            return  # Já tem um diagnóstico rodando
+        try:
+            def _set_state(state, txt):
+                for w in self._diag_btn_container.winfo_children():
+                    if isinstance(w, ctk.CTkButton):
+                        w.configure(state=state, text=txt)
+            self.after(0, lambda: _set_state("disabled", "⏳ Aguarde..."))
 
-        def _clear(f):
-            for w in f.winfo_children(): w.destroy()
-        for f in [self._diag_os, self._diag_disks, self._diag_av, self._diag_fw, self._diag_soft, self._diag_java, self._diag_dev]:
-            self.after(0, lambda frame=f: _clear(frame))
+            def _clear(f):
+                for w in f.winfo_children(): w.destroy()
+            for f in [self._diag_os, self._diag_disks, self._diag_av, self._diag_fw, self._diag_soft, self._diag_java, self._diag_dev]:
+                self.after(0, lambda frame=f: _clear(frame))
 
-        # Roda o script de info pesada
-        r = get_full_system_report()
+            # Roda o script de info pesada
+            from gear.system_info import get_full_system_report
+            r = get_full_system_report()
 
-        self.after(0, lambda: self._render_diagnostics(r))
+            self.after(0, lambda: self._render_diagnostics(r))
+        finally:
+            self._diag_lock.release()
 
     def _render_diagnostics(self, r):
         def _lines(f, items):
@@ -1587,7 +1707,12 @@ class AppWindow(ctk.CTk):
         os_info = r["windows"]
         act = r["activation"]
         is_licensed = "✅" in act['status']
-        name_str = f"{os_info.get('product', '')} {os_info.get('edition', '')}".replace("  ", " ").strip()
+        edition = os_info.get('edition', '')
+        product = os_info.get('product', '')
+        if edition.lower()[:3] in product.lower():
+            name_str = product
+        else:
+            name_str = f"{product} {edition}".replace("  ", " ").strip()
         build_str = f"Build {os_info.get('build', '')} ({os_info.get('arch', '')})"
 
         _lines(self._diag_os, [
