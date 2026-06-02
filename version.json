@@ -1,5 +1,5 @@
 {
-    "version": "2.7.0.0",
+    "version": "4.10.2.3",
     "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
-    "changelog": "- Versão 2.7.0.0: Refatorações arquiteturais. Implementado Shadow Updater via Ghost Rename (Imunidade AV). Trava geométrica global e Matriz de 4 Eixos."
+    "changelog": "- Versão 4.10.2.3: Correção de layout da barra lateral em monitores menores (cortando botões)."
 }

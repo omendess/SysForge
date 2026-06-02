@@ -70,6 +70,7 @@ class AppWindow(ctk.CTk):
             
         self.configure(fg_color=BG_MAIN)
         self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0, minsize=30)
         self.grid_columnconfigure(1, weight=1)
         self._build_sidebar()
         self._build_views()
@@ -91,22 +92,75 @@ class AppWindow(ctk.CTk):
         lbl_lat_lon = ctk.CTkLabel(self, text="LAT: 15.6014S | LON: 56.0978W", font=("Consolas", 9), text_color="#808080")
         lbl_lat_lon.place(relx=0.98, rely=0.015, anchor="ne")
         
+        self.hud_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0, height=30)
+        self.hud_frame.grid(row=1, column=1, sticky="nsew")
+
         # Tracking ID
-        lbl_track = ctk.CTkLabel(self, text="SYS.TRACKING_ID: [M-LABS-OP-01]", font=("Consolas", 9), text_color="#808080")
-        lbl_track.place(relx=0.98, rely=0.96, anchor="se")
+        self.lbl_track = ctk.CTkLabel(self.hud_frame, text="SYS.TRACKING_ID: [M-LABS-OP-01]", font=("Consolas", 9), text_color="#808080")
+        self.lbl_track.place(relx=0.98, rely=0.5, anchor="e")
+
+        # Telemetry HUD
+        self.lbl_hud_cpu = ctk.CTkLabel(self.hud_frame, text="CPU: [          ] 0%", font=("Consolas", 11, "bold"), text_color="#000000")
+        self.lbl_hud_cpu.place(relx=0.40, rely=0.5, anchor="center")
+        self.lbl_hud_ram = ctk.CTkLabel(self.hud_frame, text="RAM: [          ] 0%", font=("Consolas", 11, "bold"), text_color="#000000")
+        self.lbl_hud_ram.place(relx=0.55, rely=0.5, anchor="center")
+        self.lbl_hud_dsk = ctk.CTkLabel(self.hud_frame, text="DSK: [          ] 0%", font=("Consolas", 11, "bold"), text_color="#000000")
+        self.lbl_hud_dsk.place(relx=0.70, rely=0.5, anchor="center")
         
+        self.line_v = line_v
+        self.line_h = line_h
+        self.lbl_lat_lon = lbl_lat_lon
+
         # Força para a frente de todos os frames das views
-        line_v.lift()
-        line_h.lift()
-        lbl_lat_lon.lift()
-        lbl_track.lift()
+        self._lift_hud()
+
+        if getattr(self, '_hud_loop_started', None) is None:
+            self._hud_loop_started = True
+            threading.Thread(target=self._hud_telemetry_loop, daemon=True).start()
+
+    def _lift_hud(self):
+        for w in ['line_v', 'line_h', 'lbl_lat_lon', 'hud_frame']:
+            if hasattr(self, w):
+                getattr(self, w).lift()
+
+        if getattr(self, '_hud_loop_started', None) is None:
+            self._hud_loop_started = True
+            threading.Thread(target=self._hud_telemetry_loop, daemon=True).start()
+
+    def _hud_telemetry_loop(self):
+        import time
+        import psutil
+        def format_bar(pct, width=10):
+            filled = int(round((pct / 100) * width))
+            return "|" * filled + " " * (width - filled)
+
+        while True:
+            try:
+                c = psutil.cpu_percent(interval=None)
+                r = psutil.virtual_memory().percent
+                d = psutil.disk_usage('C:\\').percent
+
+                c_color = "#D50000" if c >= 95 else "#000000"
+                r_color = "#D50000" if r >= 95 else "#000000"
+                d_color = "#D50000" if d >= 95 else "#000000"
+
+                c_text = f"CPU: [{format_bar(c)}] {int(c):02d}%"
+                r_text = f"RAM: [{format_bar(r)}] {int(r):02d}%"
+                d_text = f"DSK: [{format_bar(d)}] {int(d):02d}%"
+
+                self.after(0, lambda txt=c_text, col=c_color: self.lbl_hud_cpu.configure(text=txt, text_color=col))
+                self.after(0, lambda txt=r_text, col=r_color: self.lbl_hud_ram.configure(text=txt, text_color=col))
+                self.after(0, lambda txt=d_text, col=d_color: self.lbl_hud_dsk.configure(text=txt, text_color=col))
+            except Exception:
+                pass
+            time.sleep(1)
 
     # ─── Sidebar ────────────────────────────────────────────
     def _build_sidebar(self):
         sb = ctk.CTkFrame(self, width=230, corner_radius=0, fg_color=BG_SIDEBAR, border_width=0)
-        sb.grid(row=0, column=0, sticky="nsew")
+        sb.grid(row=0, column=0, rowspan=2, sticky="nsew")
         sb.grid_columnconfigure(0, weight=1)
-        sb.grid_rowconfigure(11, weight=1)
+        sb.grid_rowconfigure(12, weight=1)
         self.sidebar = sb
 
         sb_sep = ctk.CTkFrame(sb, width=1, fg_color="#000000", corner_radius=0)
@@ -204,7 +258,7 @@ class AppWindow(ctk.CTk):
         # Footer badge
         from gear.updater import CURRENT_VERSION
         badge = ctk.CTkFrame(sb, fg_color="transparent", border_width=1, border_color="#000000", corner_radius=0)
-        badge.grid(row=12, column=0, padx=14, pady=(0, 20), sticky="ew")
+        badge.grid(row=13, column=0, padx=14, pady=(0, 20), sticky="ew")
         ctk.CTkLabel(badge, text=f"v{CURRENT_VERSION} · WINDOWS 11", font=("Consolas", 11), text_color="#000000").pack(pady=8)
 
     def _action_btn(self, parent, text, command, height=30):
@@ -267,7 +321,9 @@ class AppWindow(ctk.CTk):
         for f in self.views.values():
             f.grid_forget()
         if name in self.views:
-            self.views[name].grid(row=0, column=1, sticky="nsew", padx=28, pady=28)
+            self.views[name].grid(row=0, column=1, sticky="nsew", padx=28, pady=(28, 4))
+            self._lift_hud()
+            
         for k, b in self.nav_btns.items():
             ic = self.nav_icons.get(k)
             if k == name:
@@ -1345,8 +1401,8 @@ class AppWindow(ctk.CTk):
 
         # --- Coluna Esquerda: REPAROS ---
         card_rep = self._card(col_left)
-        card_rep.pack(fill="x", pady=(0, 10))
-        ctk.CTkLabel(card_rep, text="🪄 Reparo Mágico e Sistema", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(15, 6))
+        card_rep.pack(fill="x", pady=(0, 6))
+        ctk.CTkLabel(card_rep, text="🪄 Reparo Mágico e Sistema", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", padx=20, pady=(8, 4))
         ctk.CTkFrame(card_rep, height=1, fg_color="#000000").pack(fill="x", padx=20, pady=4)
         
         from gear.system_repair import repair_sfc_dism, repair_disk_chkdsk, reset_network, reset_windows_update, force_restore_point, scan_network_devices
@@ -1400,13 +1456,13 @@ class AppWindow(ctk.CTk):
             self.scan_text.configure(state="disabled")
             self.lbl_repair_st.configure(text="✅ Scan concluído.")
 
-        _action_btn_red(card_scan, "Verificar Wi-Fi, Cabo e Bluetooth", _do_scan, "#A855F7", "#9333EA").pack(fill="x", padx=20, pady=5)
+        _action_btn_red(card_scan, "Verificar Wi-Fi, Cabo e Bluetooth", _do_scan, "#A855F7", "#9333EA").pack(fill="x", padx=20, pady=4)
         
-        self.scan_text = ctk.CTkTextbox(card_scan, height=80, fg_color="#F4F4F5", corner_radius=0, border_width=1, border_color="#000000", font=ctk.CTkFont(family="Consolas", size=11), text_color="#000000", state="disabled")
-        self.scan_text.pack(fill="x", padx=20, pady=(5, 15))
+        self.scan_text = ctk.CTkTextbox(card_scan, height=50, fg_color="#F4F4F5", corner_radius=0, border_width=1, border_color="#000000", font=ctk.CTkFont(family="Consolas", size=11), text_color="#000000", state="disabled")
+        self.scan_text.pack(fill="x", padx=20, pady=(4, 8))
 
         self.lbl_repair_st = ctk.CTkLabel(self.frame_repair, text="Aguardando ação...", font=("Consolas", 12), text_color="#000000")
-        self.lbl_repair_st.pack(side="bottom", pady=10)
+        self.lbl_repair_st.pack(side="bottom", pady=4)
 
         # ─── ABA 2: MATRIZ DE INTERVENÇÃO ───
         body_matrix = ctk.CTkFrame(self.frame_matrix, fg_color="transparent")
@@ -1418,18 +1474,119 @@ class AppWindow(ctk.CTk):
         col_right_m = ctk.CTkFrame(body_matrix, fg_color="transparent")
         col_right_m.pack(side="left", fill="both", expand=True, padx=(10, 0))
 
-        ctk.CTkLabel(col_left_m, text="VETORES DE ANOMALIA", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", pady=(0, 10))
+        self._last_triage_counts = None
+
+        # Triage Engine Button
+        def _run_triage():
+            from gear.triage_engine import run_system_triage
+            self.term_text.configure(state="normal")
+            self.term_text.delete("1.0", "end")
+            self.term_text.insert("end", "[*] INICIANDO TRIAGE MATEMÁTICO DE SISTEMA...\n[*] LENDO LOGS DE EVENTOS DO WINDOWS...\n")
+            self.term_text.see("end")
+            self.term_text.configure(state="disabled")
+
+            def _triage_thread():
+                counts = run_system_triage()
+                self._last_triage_counts = counts
+                idx = 100 - (counts["network"]*5 + counts["update"]*5 + counts["kernel"]*10)
+                idx = max(0, min(100, idx))
+                
+                def _update_ui():
+                    self.term_text.configure(state="normal")
+                    self.term_text.insert("end", f"[+] DIAGNÓSTICO CONCLUÍDO.\n[!] ERROS REDE: {counts['network']}\n[!] ERROS UPDATE: {counts['update']}\n[!] ERROS KERNEL: {counts['kernel']}\n[>] ÍNDICE DE INTEGRIDADE: {idx}%\n")
+                    self.term_text.see("end")
+                    self.term_text.configure(state="disabled")
+                    
+                    if counts["network"] > 0:
+                        self.btn_purge_rede.configure(border_color="#D50000", border_width=2)
+                        self.btn_purge_rede.winfo_children()[1].configure(text_color="#D50000")
+                    if counts["update"] > 0:
+                        self.btn_purge_update.configure(border_color="#D50000", border_width=2)
+                        self.btn_purge_update.winfo_children()[1].configure(text_color="#D50000")
+                    if counts["kernel"] > 0:
+                        self.btn_purge_image.configure(border_color="#D50000", border_width=2)
+                        self.btn_purge_image.winfo_children()[1].configure(text_color="#D50000")
+
+                self.after(0, _update_ui)
+                
+            threading.Thread(target=_triage_thread, daemon=True).start()
+
+        self._action_btn(col_left_m, "[ EXECUTAR TRIAGE DO SISTEMA ]", _run_triage, height=36).pack(fill="x", pady=(0, 6))
+
+        def _run_autofix():
+            if getattr(self, '_last_triage_counts', None) is None:
+                self.term_text.configure(state="normal")
+                self.term_text.insert("end", "[!] EXECUTE O TRIAGE PRIMEIRO ANTES DA AUTOCURA.\n")
+                self.term_text.see("end")
+                self.term_text.configure(state="disabled")
+                return
+                
+            counts = self._last_triage_counts
+            if counts["network"] == 0 and counts["update"] == 0 and counts["kernel"] == 0:
+                self.term_text.configure(state="normal")
+                self.term_text.insert("end", "[!] SISTEMA ESTÁVEL. NENHUMA INTERVENÇÃO NECESSÁRIA.\n")
+                self.term_text.see("end")
+                self.term_text.configure(state="disabled")
+                return
+
+            self.term_text.configure(state="normal")
+            self.term_text.insert("end", "[*] INICIANDO PROTOCOLOS DE AUTOCURA...\n")
+            self.term_text.see("end")
+            self.term_text.configure(state="disabled")
+
+            def _autofix_thread():
+                from gear.repair_protocols import protocolo_reparo_rede, protocolo_reparo_update, protocolo_reparo_kernel, protocolo_guarda_chuva
+                
+                self.after(0, lambda: _log("[ > ] INICIANDO PROTOCOLO GUARDA-CHUVA (PONTO DE RESTAURAÇÃO)..."))
+                if not protocolo_guarda_chuva():
+                    self.after(0, lambda: _log("[ ! ] FALHA NO GUARDA-CHUVA. AUTOCURA ABORTADA POR SEGURANÇA.\n"))
+                    return
+                
+                self.after(0, lambda: _log("[ > ] APLICANDO ANTÍDOTOS MATEMÁTICOS...\n"))
+                
+                if counts["network"] > 0:
+                    self.after(0, lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE REDE"))
+                    res = protocolo_reparo_rede()
+                    self.after(0, lambda r=res: stop_spinner(r))
+                    
+                if counts["update"] > 0:
+                    self.after(0, lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE UPDATE"))
+                    res = protocolo_reparo_update()
+                    self.after(0, lambda r=res: stop_spinner(r))
+                    
+                if counts["kernel"] > 0:
+                    self.after(0, lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE KERNEL"))
+                    res = protocolo_reparo_kernel()
+                    self.after(0, lambda r=res: stop_spinner(r))
+                    
+                self.after(0, lambda: _log("[+] TODOS OS PROTOCOLOS DE AUTOCURA FORAM CONCLUÍDOS."))
+                
+                self.after(0, lambda: start_spinner("[*] INICIANDO EXPURGO DE LOGS FANTASMAS"))
+                from gear.repair_protocols import expurgar_historico_eventos
+                res_expurgo = expurgar_historico_eventos()
+                self.after(0, lambda r=res_expurgo: stop_spinner(r))
+                
+                self.after(0, lambda: _log("[>] RECOMENDADO: EXECUTE A TRIAGE NOVAMENTE PARA VALIDAR A INTEGRIDADE.\n"))
+                
+            threading.Thread(target=_autofix_thread, daemon=True).start()
+
+        def _action_btn_red_auto(parent, text, cmd):
+            return ctk.CTkButton(parent, text=text.upper(), height=36, corner_radius=0, border_width=1, border_color="#000000", text_color="#FFFFFF", font=("Helvetica", 12, "bold"), fg_color="#D50000", hover_color="#B71C1C", command=cmd)
+
+        _action_btn_red_auto(col_left_m, "[ EXECUTAR PROTOCOLOS DE AUTOCURA ]", _run_autofix).pack(fill="x", pady=(0, 10))
+
+        ctk.CTkLabel(col_left_m, text="VETORES DE ANOMALIA", font=("Helvetica", 14, "bold"), text_color="#000000").pack(anchor="w", pady=(0, 6))
         
         def _purge_btn(parent, text, cmd):
-            container = ctk.CTkFrame(parent, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF", height=48)
+            container = ctk.CTkFrame(parent, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF", height=32)
             
-            indicator = ctk.CTkFrame(container, width=4, height=48, fg_color="transparent", corner_radius=0)
+            indicator = ctk.CTkFrame(container, width=4, height=32, fg_color="transparent", corner_radius=0)
             indicator.pack(side="left", fill="y", pady=1, padx=(1,0))
             
             lbl = ctk.CTkLabel(
-                container, text=text, anchor="center", height=48,
+                container, text=text, anchor="center", height=32,
                 fg_color="transparent", text_color="#000000",
-                font=("Helvetica", 14, "bold")
+                font=("Helvetica", 12, "bold")
             )
             lbl.pack(side="left", fill="both", expand=True, padx=(2, 6), pady=1)
             
@@ -1453,12 +1610,12 @@ class AppWindow(ctk.CTk):
                 
             return container
 
-        ctk.CTkLabel(col_right_m, text="TERMINAL DE OPERAÇÕES", font=("Helvetica", 16, "bold"), text_color="#000000").pack(anchor="w", pady=(0, 10))
+        ctk.CTkLabel(col_right_m, text="TERMINAL DE OPERAÇÕES", font=("Helvetica", 14, "bold"), text_color="#000000").pack(anchor="w", pady=(0, 6))
         
         self.term_text = ctk.CTkTextbox(
             col_right_m, fg_color="#000000", text_color="#FFFFFF", 
             font=("Consolas", 11, "bold"), corner_radius=0, 
-            border_width=1, border_color="#000000", height=250
+            border_width=1, border_color="#000000", height=280
         )
         self.term_text.pack(fill="x", anchor="n")
         self.term_text.configure(state="disabled")
@@ -1466,6 +1623,43 @@ class AppWindow(ctk.CTk):
         def _log(msg):
             self.term_text.configure(state="normal")
             self.term_text.insert("end", msg + "\n")
+            self.term_text.see("end")
+            self.term_text.configure(state="disabled")
+
+        self.is_spinning = False
+        self.spinner_dots = 0
+        self.spinner_msg = ""
+        self.spinner_id = None
+
+        def _animar_linha():
+            if not getattr(self, "is_spinning", False): return
+            self.spinner_dots = (self.spinner_dots + 1) % 4
+            dots = "." * self.spinner_dots
+            self.term_text.configure(state="normal")
+            self.term_text.delete("end-2l", "end-1c")
+            self.term_text.insert("end-1c", self.spinner_msg + dots)
+            self.term_text.see("end")
+            self.term_text.configure(state="disabled")
+            self.spinner_id = self.after(300, _animar_linha)
+
+        def start_spinner(msg):
+            self.is_spinning = True
+            self.spinner_dots = 0
+            self.spinner_msg = msg
+            self.term_text.configure(state="normal")
+            self.term_text.insert("end", msg + "\n")
+            self.term_text.see("end")
+            self.term_text.configure(state="disabled")
+            self.spinner_id = self.after(300, _animar_linha)
+
+        def stop_spinner(final_msg):
+            self.is_spinning = False
+            if getattr(self, "spinner_id", None) is not None:
+                self.after_cancel(self.spinner_id)
+                self.spinner_id = None
+            self.term_text.configure(state="normal")
+            self.term_text.delete("end-2l", "end-1c")
+            self.term_text.insert("end-1c", final_msg)
             self.term_text.see("end")
             self.term_text.configure(state="disabled")
 
@@ -1482,24 +1676,35 @@ class AppWindow(ctk.CTk):
 
         from gear.intervention_matrix import fix_rede_falsa, fix_windows_update, fix_spooler_impressao, fix_explorer_congelado, fix_imagem_sistema, reverter_estado, ressuscitar_drivers
 
-        _purge_btn(col_left_m, "[ PURGE ] PROTOCOLOS DE REDE", lambda: _run_intervention(fix_rede_falsa)).pack(fill="x", pady=6)
-        _purge_btn(col_left_m, "[ PURGE ] WINDOWS UPDATE", lambda: _run_intervention(fix_windows_update)).pack(fill="x", pady=6)
-        _purge_btn(col_left_m, "[ PURGE ] SPOOLER DE IMPRESSÃO", lambda: _run_intervention(fix_spooler_impressao)).pack(fill="x", pady=6)
-        _purge_btn(col_left_m, "[ PURGE ] SHELL EXPLORER", lambda: _run_intervention(fix_explorer_congelado)).pack(fill="x", pady=6)
-        _purge_btn(col_left_m, "[ PURGE ] IMAGEM DO SISTEMA (SFC/DISM)", lambda: _run_intervention(fix_imagem_sistema)).pack(fill="x", pady=6)
-        _purge_btn(col_left_m, "[ CURE ] RESSUSCITAR DRIVERS (PNP)", lambda: _run_intervention(ressuscitar_drivers)).pack(fill="x", pady=6)
+        self.btn_purge_rede = _purge_btn(col_left_m, "[ PURGE ] PROTOCOLOS DE REDE", lambda: _run_intervention(fix_rede_falsa))
+        self.btn_purge_rede.pack(fill="x", pady=4)
         
-        ctk.CTkFrame(col_left_m, height=1, fg_color="#000000").pack(fill="x", pady=10)
+        self.btn_purge_update = _purge_btn(col_left_m, "[ PURGE ] WINDOWS UPDATE", lambda: _run_intervention(fix_windows_update))
+        self.btn_purge_update.pack(fill="x", pady=4)
+        
+        self.btn_purge_spooler = _purge_btn(col_left_m, "[ PURGE ] SPOOLER DE IMPRESSÃO", lambda: _run_intervention(fix_spooler_impressao))
+        self.btn_purge_spooler.pack(fill="x", pady=4)
+        
+        self.btn_purge_explorer = _purge_btn(col_left_m, "[ PURGE ] SHELL EXPLORER", lambda: _run_intervention(fix_explorer_congelado))
+        self.btn_purge_explorer.pack(fill="x", pady=4)
+        
+        self.btn_purge_image = _purge_btn(col_left_m, "[ PURGE ] IMAGEM DO SISTEMA (SFC/DISM)", lambda: _run_intervention(fix_imagem_sistema))
+        self.btn_purge_image.pack(fill="x", pady=4)
+        
+        self.btn_cure_drivers = _purge_btn(col_left_m, "[ CURE ] RESSUSCITAR DRIVERS (PNP)", lambda: _run_intervention(ressuscitar_drivers))
+        self.btn_cure_drivers.pack(fill="x", pady=4)
+        
+        ctk.CTkFrame(col_left_m, height=1, fg_color="#000000").pack(fill="x", pady=6)
         
         def _btn_emergencia(parent, text, cmd):
             return ctk.CTkButton(
-                parent, text=text, height=48, corner_radius=0, 
+                parent, text=text, height=36, corner_radius=0, 
                 border_width=2, border_color="#000000", text_color="#FFFFFF", 
-                font=("Helvetica", 14, "bold"), fg_color="#000000", 
+                font=("Helvetica", 12, "bold"), fg_color="#000000", 
                 hover_color="#333333", command=cmd
             )
             
-        _btn_emergencia(col_left_m, "[ < ] INICIAR REVERSÃO DE EMERGÊNCIA", lambda: _run_intervention(reverter_estado, is_revert=True)).pack(fill="x", pady=(10, 0))
+        _btn_emergencia(col_left_m, "[ < ] INICIAR REVERSÃO DE EMERGÊNCIA", lambda: _run_intervention(reverter_estado, is_revert=True)).pack(fill="x", pady=(6, 0))
 
         self._switch_repair_tab("repair")
 
@@ -1570,15 +1775,15 @@ class AppWindow(ctk.CTk):
         header.pack(fill="x", pady=(0, 10))
         self._section_title(header, "Sobre o SysForge", "Informações do sistema e diagnóstico")
 
-        scroll = ctk.CTkScrollableFrame(view, fg_color="transparent")
+        scroll = ctk.CTkFrame(view, fg_color="transparent")
         scroll.pack(fill="both", expand=True)
 
         # ── Card: Sobre o App ──────────────────────────────────────────────
         about = self._card(scroll)
-        about.pack(fill="x", pady=(0, 14))
+        about.pack(fill="x", pady=(0, 8))
 
         about_body = ctk.CTkFrame(about, fg_color="transparent")
-        about_body.pack(fill="x", padx=24, pady=20)
+        about_body.pack(fill="x", padx=24, pady=10)
 
         # Coluna esquerda — identidade
         left_col = ctk.CTkFrame(about_body, fg_color="transparent")
@@ -1625,10 +1830,10 @@ class AppWindow(ctk.CTk):
 
         # ── Diagnóstico de Sistema ────────────────────────────────────────
         diag_card = self._card(scroll)
-        diag_card.pack(fill="x", pady=(0, 14))
+        diag_card.pack(fill="x", pady=(0, 0))
 
         diag_header = ctk.CTkFrame(diag_card, fg_color="transparent")
-        diag_header.pack(fill="x", padx=20, pady=(16, 8))
+        diag_header.pack(fill="x", padx=20, pady=(10, 4))
         ctk.CTkLabel(diag_header, text="🔬 Diagnóstico Completo",
                      font=("Helvetica", 16, "bold"), text_color="#D50000").pack(side="left")
 
@@ -1641,33 +1846,37 @@ class AppWindow(ctk.CTk):
 
         # Container para colunas
         diag_body = ctk.CTkFrame(diag_card, fg_color="transparent")
-        diag_body.pack(fill="x", padx=20, pady=(0, 20))
+        diag_body.pack(fill="x", padx=20, pady=(0, 5))
         
         col_left = ctk.CTkFrame(diag_body, fg_color="transparent")
-        col_left.pack(side="left", fill="both", expand=True, padx=(0, 10), anchor="n")
+        col_left.pack(side="left", fill="both", expand=True, padx=(0, 5), anchor="n")
+        
+        col_mid = ctk.CTkFrame(diag_body, fg_color="transparent")
+        col_mid.pack(side="left", fill="both", expand=True, padx=5, anchor="n")
         
         col_right = ctk.CTkFrame(diag_body, fg_color="transparent")
-        col_right.pack(side="left", fill="both", expand=True, padx=(10, 0), anchor="n")
+        col_right.pack(side="left", fill="both", expand=True, padx=(5, 0), anchor="n")
 
         # Helper UI
         def _section(parent, title):
             f = ctk.CTkFrame(parent, fg_color="transparent")
-            f.pack(fill="x", pady=(0, 20))
+            f.pack(fill="x", pady=(0, 8))
             ctk.CTkLabel(f, text=title, font=("Helvetica", 12, "bold"),
                          text_color="#000000").pack(anchor="w")
-            ctk.CTkFrame(f, height=1, fg_color=BORDER).pack(fill="x", pady=4)
+            ctk.CTkFrame(f, height=1, fg_color=BORDER).pack(fill="x", pady=(0, 4))
             content_frame = ctk.CTkFrame(f, fg_color="transparent")
             content_frame.pack(anchor="w", fill="x")
             return content_frame
 
         self._diag_os     = _section(col_left, "Sistema Operacional")
         self._diag_disks  = _section(col_left, "Armazenamento Físico")
-        self._diag_fw     = _section(col_left, "Segurança (Firewall)")
-        self._diag_java   = _section(col_left, "Java Runtime")
         
-        self._diag_av     = _section(col_right, "Segurança (Antivírus)")
+        self._diag_av     = _section(col_mid, "Segurança (Antivírus)")
+        self._diag_fw     = _section(col_mid, "Segurança (Firewall)")
+        self._diag_java   = _section(col_mid, "Java Runtime")
+        
         self._diag_soft   = _section(col_right, "Dependências de Software")
-        self._diag_dev    = _section(col_right, "Ferramentas de Desenvolvimento")
+        self._diag_dev    = _section(col_right, "Dev Tools")
 
         # Inicia a leitura do diagnóstico
         self._diag_lock = threading.Lock()

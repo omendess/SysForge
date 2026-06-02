@@ -31,6 +31,11 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__)))
 
     import customtkinter
+    from gear.blackbox import run_blackbox_audit
+    
+    # Executa a auditoria forense silenciosa antes de qualquer GUI
+    run_blackbox_audit()
+    
     from gui.app_window import AppWindow
     from gui.splash_screen import SplashScreen
     from gear.updater import check_for_updates
