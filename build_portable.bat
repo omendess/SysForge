@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 echo Iniciando Build: SysForge PORTABLE (Leve)
 echo.
 if exist build rmdir /s /q build

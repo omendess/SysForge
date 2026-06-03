@@ -34,7 +34,7 @@ def main():
         f'pyinstaller --noconfirm --onefile --noconsole --uac-admin --name "{exe_name}" '
         f'--icon "icon.ico" '
         f'--add-data "gui;gui" --add-data "gear;gear" --add-data "worker;worker" '
-        f'--add-data "version.json;." --add-data "icon.ico;." '
+        f'--add-data "icon.ico;." '
         f'--add-data "icon.png;." --add-data "logo_mlabs.png;." '
     )
     
