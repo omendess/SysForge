@@ -1,11 +1,9 @@
 @echo off
-echo Iniciando Build: SysForge PORTABLE (Leve)
-echo.
+echo Iniciando Higiene Profunda...
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist Output rmdir /s /q Output
 if exist __pycache__ rmdir /s /q __pycache__
 del /q *.spec 2>nul
-python builder.py PORTABLE
+echo [+] Ambiente limpo.
 pause
-

@@ -38,10 +38,16 @@ def check_for_updates(root_window, manual=False):
         try:
             import time
             cache_buster_url = f"{API_URL}?t={int(time.time())}"
-            req = urllib.request.Request(cache_buster_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=8) as response:
+            headers = {"User-Agent": "SysForge-Updater", "Accept": "application/vnd.github.v3+json"}
+            req = urllib.request.Request(cache_buster_url, headers=headers)
+            try:
+                response = urllib.request.urlopen(req, timeout=8)
+                if response.getcode() != 200:
+                    print(f"Erro API: {response.getcode()}")
                 data = json.loads(response.read().decode())
-                
+            except urllib.error.HTTPError as e:
+                print(f"Erro API: {e.code} - {e.read().decode('utf-8', errors='ignore')}")
+                raise e
                 from gear.build_config import IS_PORTABLE
                 
                 tag_name = data.get("tag_name", "")
@@ -51,7 +57,7 @@ def check_for_updates(root_window, manual=False):
                 if IS_PORTABLE:
                     assets = data.get("assets", [])
                     for asset in assets:
-                        if "Portable" in asset.get("name", ""):
+                        if "SysForge_Portable" in asset.get("name", ""):
                             download_url = asset.get("browser_download_url", "")
                             break
                 else:
