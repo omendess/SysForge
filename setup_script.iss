@@ -1,20 +1,23 @@
 [Setup]
 AppName=SysForge
 SetupIconFile=icon.ico
-AppVersion=5.0.0.1
+AppVersion=1.0.0
 AppPublisher=Orlando Mendes
 AppCopyright=Copyright (C) 2026 Orlando Mendes
 VersionInfoCompany=Orlando Mendes
 VersionInfoDescription=SysForge Host - Motor de Implantação e Manutenção
-VersionInfoVersion=5.0.0.1
+VersionInfoVersion=1.0.0.0
 DefaultDirName={autopf}\SysForge
 DefaultGroupName=SysForge
 OutputDir=Output
-OutputBaseFilename=SysForge_Setup_v5
-Compression=lzma
+OutputBaseFilename=SysForge_Setup_v1
+WizardStyle=modern
+Compression=lzma2/ultra64
 SolidCompression=yes
-PrivilegesRequired=admin
+ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
+DisableProgramGroupPage=yes
+PrivilegesRequired=admin
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

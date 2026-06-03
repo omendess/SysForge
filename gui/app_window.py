@@ -274,24 +274,27 @@ class AppWindow(ctk.CTk):
                 w.bind("<Leave>", make_on_leave(key, txt_lbl, container, indicator, ic_lbl))
                 w.bind("<Button-1>", trigger_click)
 
-        # Ponte de Instalação (Portable -> Host)
-        if IS_PORTABLE:
-            import webbrowser
-            install_btn = ctk.CTkFrame(sb, fg_color="#D50000", border_width=1, border_color="#000000", corner_radius=0, height=32)
-            install_btn.grid(row=13, column=0, padx=14, pady=(10, 0), sticky="ew")
-            install_btn.pack_propagate(False)
-            install_lbl = ctk.CTkLabel(
-                install_btn, text="⬇  INSTALAR SYSFORGE HOST", anchor="w",
-                fg_color="transparent", text_color="#FFFFFF",
-                font=("Consolas", 11, "bold")
-            )
-            install_lbl.pack(side="left", fill="both", expand=True, padx=10, pady=1)
-            def _open_releases(e=None):
-                webbrowser.open("https://github.com/omendess/SysForge/releases")
-            for w in [install_btn, install_lbl]:
-                w.bind("<Button-1>", _open_releases)
-                w.bind("<Enter>", lambda e: install_btn.configure(fg_color="#B71C1C"))
-                w.bind("<Leave>", lambda e: install_btn.configure(fg_color="#D50000"))
+        # Ponte de Instalação (Portable <-> Host)
+        import webbrowser
+        bridge_btn = ctk.CTkFrame(sb, fg_color="#D50000", border_width=1, border_color="#000000", corner_radius=0, height=32)
+        bridge_btn.grid(row=13, column=0, padx=14, pady=(10, 0), sticky="ew")
+        bridge_btn.pack_propagate(False)
+        
+        btn_txt = "⬇  INSTALAR SYSFORGE HOST" if IS_PORTABLE else "⬇  BAIXAR VERSÃO PORTABLE"
+        bridge_lbl = ctk.CTkLabel(
+            bridge_btn, text=btn_txt, anchor="w",
+            fg_color="transparent", text_color="#FFFFFF",
+            font=("Consolas", 11, "bold")
+        )
+        bridge_lbl.pack(side="left", fill="both", expand=True, padx=10, pady=1)
+        
+        def _open_releases(e=None):
+            webbrowser.open("https://github.com/omendess/SysForge/releases")
+            
+        for w in [bridge_btn, bridge_lbl]:
+            w.bind("<Button-1>", _open_releases)
+            w.bind("<Enter>", lambda e: bridge_btn.configure(fg_color="#B71C1C"))
+            w.bind("<Leave>", lambda e: bridge_btn.configure(fg_color="#D50000"))
 
         # Footer badge
         from gear.updater import CURRENT_VERSION

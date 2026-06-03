@@ -13,9 +13,9 @@ import subprocess
 import urllib.request
 import json
 
-CURRENT_VERSION = "5.0.3.0"
+CURRENT_VERSION = "1.0.0"
 
-UPDATE_URL = "https://raw.githubusercontent.com/omendess/SysForge/main/version.json"
+API_URL = "https://api.github.com/repos/omendess/SysForge/releases/latest"
 
 
 def _compare_versions(v1, v2):
@@ -37,21 +37,27 @@ def check_for_updates(root_window, manual=False):
     def _check():
         try:
             import time
-            cache_buster_url = f"{UPDATE_URL}?t={int(time.time())}"
+            cache_buster_url = f"{API_URL}?t={int(time.time())}"
             req = urllib.request.Request(cache_buster_url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=8) as response:
                 data = json.loads(response.read().decode())
                 
                 from gear.build_config import IS_PORTABLE
                 
-                latest_version = data.get("version", CURRENT_VERSION)
+                tag_name = data.get("tag_name", "")
+                latest_version = tag_name.lstrip("v") if tag_name else CURRENT_VERSION
                 
+                download_url = ""
                 if IS_PORTABLE:
-                    download_url = data.get("download_url_portable", data.get("download_url", ""))
+                    assets = data.get("assets", [])
+                    for asset in assets:
+                        if "Portable" in asset.get("name", ""):
+                            download_url = asset.get("browser_download_url", "")
+                            break
                 else:
-                    download_url = data.get("download_url_host", "https://github.com/omendess/SysForge/releases/latest")
+                    download_url = data.get("html_url", "https://github.com/omendess/SysForge/releases/latest")
                     
-                changelog = data.get("changelog", "Melhorias de estabilidade e segurança.")
+                changelog = data.get("body", "Melhorias de estabilidade e segurança.")
                 
                 if _compare_versions(CURRENT_VERSION, latest_version):
                     root_window.after(0, lambda: _show_update_dialog(root_window, latest_version, download_url, changelog))
