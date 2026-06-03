@@ -13,7 +13,7 @@ import subprocess
 import urllib.request
 import json
 
-CURRENT_VERSION = "1.0.0"
+CURRENT_VERSION = "1.0.1"
 
 API_URL = "https://api.github.com/repos/omendess/SysForge/releases/latest"
 

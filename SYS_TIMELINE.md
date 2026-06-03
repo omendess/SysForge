@@ -1,6 +1,6 @@
 # SYSFORGE - MATRIZ DE RASTREAMENTO (TIMELINE)
 **Status Atual:** ATIVO
-**Versão Atual:** 1.0.0 (Release Candidate)
+**Versão Atual:** 1.0.1 (Validação OTA Update)
 
 ## DIRETRIZES GLOBAIS DE PRODUÇÃO (REGRAS ABSOLUTAS)
 As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas não podem ser ignoradas ou alteradas pela IA.
@@ -16,6 +16,9 @@ As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas nã
 2. ATUALIZAR POR ÚLTIMO: Ao finalizar uma implementação solicitada, a IA DEVE registrar a mudança aqui e calcular a nova versão com base na Matriz de 4 Eixos.
 
 ## HISTÓRICO DE INTERVENÇÕES
+### [Versão 1.0.1] - Data: 2026-06-03
+- [Arquitetura/Sistema] Bump para v1.0.1. Objetivo: Validação em produção do motor Auto-Updater Edition-Aware conectado à API do GitHub (Dummy Bump para forçar trigger de atualização).
+
 ### [Versão 1.0.0] - Data: 2026-06-03
 - [Arquitetura/Sistema] Reboot de Arquitetura (Tábula Rasa). Limpeza absoluta de artefatos residuais e re-versionamento global para o Marco Zero (1.0.0) como Release Candidate.
 - [Deploy] Inno Setup modernizado (WizardStyle=modern, Compressão LZMA2 Ultra64, bloqueio x64).

@@ -1,12 +1,12 @@
 [Setup]
 AppName=SysForge
 SetupIconFile=icon.ico
-AppVersion=1.0.0
+AppVersion=1.0.1
 AppPublisher=Orlando Mendes
 AppCopyright=Copyright (C) 2026 Orlando Mendes
 VersionInfoCompany=Orlando Mendes
 VersionInfoDescription=SysForge Host - Motor de Implantação e Manutenção
-VersionInfoVersion=1.0.0.0
+VersionInfoVersion=1.0.1.0
 DefaultDirName={autopf}\SysForge
 DefaultGroupName=SysForge
 OutputDir=Output
