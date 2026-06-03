@@ -5,3 +5,8 @@ venv/
 .env
 .vscode/
 update.zip
+*.spec
+build/
+dist/
+Output/
+sysforge_clean_audit.log

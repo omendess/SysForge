@@ -33,7 +33,8 @@ class AppWindow(ctk.CTk):
         super().__init__()
         ctk.set_appearance_mode("Light")
         from gear.updater import CURRENT_VERSION
-        self.title(f"SYSFORGE v{CURRENT_VERSION} - Motor de Implantação TI (Samaritan Protocol)")
+        from gear.build_config import EDICAO_ATUAL
+        self.title(f"SYSFORGE v{CURRENT_VERSION} [{EDICAO_ATUAL}] - Motor de Implantação TI (Samaritan Protocol)")
         
         # Centralizar na tela
         w, h = 1280, 720
@@ -160,7 +161,7 @@ class AppWindow(ctk.CTk):
         sb = ctk.CTkFrame(self, width=230, corner_radius=0, fg_color=BG_SIDEBAR, border_width=0)
         sb.grid(row=0, column=0, rowspan=2, sticky="nsew")
         sb.grid_columnconfigure(0, weight=1)
-        sb.grid_rowconfigure(12, weight=1)
+        sb.grid_rowconfigure(14, weight=1)
         self.sidebar = sb
 
         sb_sep = ctk.CTkFrame(sb, width=1, fg_color="#000000", corner_radius=0)
@@ -187,40 +188,58 @@ class AppWindow(ctk.CTk):
 
         # Separator
         sep = ctk.CTkFrame(sb, height=1, fg_color=BORDER, corner_radius=0)
-        sep.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
+        sep.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 10))
 
         self.nav_btns = {}
         self.nav_frames = {}
         self.nav_indicators = {}
         self.nav_icons = {}
 
+        from gear.build_config import IS_PORTABLE
+
+        # Cluster 1: Monitoramento
         items = [
-            ("💻", "DASHBOARD",        "dashboard",  3),
-            ("⚙️", "OPERAÇÕES",        "operations", 4),
-            ("📦", "SOFTWARES",        "softwares",  5),
-            ("🛠️", "TWEAKS WINDOWS",   "tweaks",     6),
-            ("🗑️", "APP MANAGER",      "app_manager",7),
-            ("🚀", "STARTUP",          "startup",    8),
-            ("🛡️", "REPARO & SCANNER", "repair",     9),
-            ("📋", "LOGS",             "logs",       10),
-            ("ℹ️", "INFO",             "info",       11),
+            ("💻", "DASHBOARD",            "dashboard",   3, (2, 0)),
+            ("⚙️", "OPERAÇÕES",            "operations",  4, (2, 0)),
         ]
 
-        for icon, text, key, row in items:
-            container = ctk.CTkFrame(sb, fg_color="#FFFFFF", border_width=1, border_color="#000000", corner_radius=0, height=42)
-            container.grid(row=row, column=0, padx=14, pady=3, sticky="ew")
+        # Cluster 2: Engenharia de Sistema
+        items.extend([
+            ("🛡️", "REPARO & SCANNER",     "repair",      5, (10, 0)),
+        ])
+        if not IS_PORTABLE:
+            items.append(("🧹", "LIMPEZA PERSONALIZADA", "cleaner", 6, (2, 0)))
+        items.extend([
+            ("🛠️", "TWEAKS WINDOWS",       "tweaks",      7, (2, 0)),
+            ("🚀", "STARTUP",              "startup",     8, (2, 0)),
+        ])
+
+        # Cluster 3: Gestão de Pacotes
+        if not IS_PORTABLE:
+            items.append(("📦", "SOFTWARES",        "softwares",   9, (10, 0)))
+            items.append(("🗑️", "APP MANAGER",      "app_manager", 10, (2, 0)))
+
+        # Cluster 4: Base
+        items.extend([
+            ("📋", "LOGS",                 "logs",        11, (10, 0)),
+            ("ℹ️", "INFO",                 "info",        12, (2, 0)),
+        ])
+
+        for icon, text, key, row, pad_y in items:
+            container = ctk.CTkFrame(sb, fg_color="#FFFFFF", border_width=1, border_color="#000000", corner_radius=0, height=32)
+            container.grid(row=row, column=0, padx=14, pady=pad_y, sticky="ew")
             container.pack_propagate(False)
 
             indicator = ctk.CTkFrame(container, width=4, fg_color="transparent", corner_radius=0)
             indicator.pack(side="left", fill="y", pady=1, padx=(1,0))
             
-            ic_lbl = ctk.CTkLabel(container, text=icon, width=36, anchor="center", font=("Segoe UI Emoji", 16))
+            ic_lbl = ctk.CTkLabel(container, text=icon, width=30, anchor="center", font=("Segoe UI Emoji", 14))
             ic_lbl.pack(side="left", pady=1)
 
             txt_lbl = ctk.CTkLabel(
                 container, text=text, anchor="w",
                 fg_color="transparent", text_color="#000000",
-                font=("Helvetica", 13, "bold")
+                font=("Consolas", 11, "bold")
             )
             txt_lbl.pack(side="left", fill="both", expand=True, padx=(0, 1), pady=1)
 
@@ -255,11 +274,31 @@ class AppWindow(ctk.CTk):
                 w.bind("<Leave>", make_on_leave(key, txt_lbl, container, indicator, ic_lbl))
                 w.bind("<Button-1>", trigger_click)
 
+        # Ponte de Instalação (Portable -> Host)
+        if IS_PORTABLE:
+            import webbrowser
+            install_btn = ctk.CTkFrame(sb, fg_color="#D50000", border_width=1, border_color="#000000", corner_radius=0, height=32)
+            install_btn.grid(row=13, column=0, padx=14, pady=(10, 0), sticky="ew")
+            install_btn.pack_propagate(False)
+            install_lbl = ctk.CTkLabel(
+                install_btn, text="⬇  INSTALAR SYSFORGE HOST", anchor="w",
+                fg_color="transparent", text_color="#FFFFFF",
+                font=("Consolas", 11, "bold")
+            )
+            install_lbl.pack(side="left", fill="both", expand=True, padx=10, pady=1)
+            def _open_releases(e=None):
+                webbrowser.open("https://github.com/omendess/SysForge/releases")
+            for w in [install_btn, install_lbl]:
+                w.bind("<Button-1>", _open_releases)
+                w.bind("<Enter>", lambda e: install_btn.configure(fg_color="#B71C1C"))
+                w.bind("<Leave>", lambda e: install_btn.configure(fg_color="#D50000"))
+
         # Footer badge
         from gear.updater import CURRENT_VERSION
+        from gear.build_config import EDICAO_ATUAL
         badge = ctk.CTkFrame(sb, fg_color="transparent", border_width=1, border_color="#000000", corner_radius=0)
-        badge.grid(row=13, column=0, padx=14, pady=(0, 20), sticky="ew")
-        ctk.CTkLabel(badge, text=f"v{CURRENT_VERSION} · WINDOWS 11", font=("Consolas", 11), text_color="#000000").pack(pady=8)
+        badge.grid(row=15, column=0, padx=14, pady=(0, 14), sticky="sew")
+        ctk.CTkLabel(badge, text=f"v{CURRENT_VERSION} [{EDICAO_ATUAL}] · WINDOWS 11", font=("Consolas", 11), text_color="#000000").pack(pady=6)
 
     def _action_btn(self, parent, text, command, height=30):
         container = ctk.CTkFrame(parent, border_width=1, border_color="#000000", corner_radius=0, fg_color="#FFFFFF")
@@ -303,12 +342,17 @@ class AppWindow(ctk.CTk):
             "softwares": self._build_softwares,
             "tweaks": self._build_tweaks,
             "app_manager": self._build_app_manager,
+            "cleaner": self._build_cleaner,
             "startup": self._build_startup,
             "repair": self._build_repair,
             "logs": self._build_logs,
             "info": self._build_info,
         }
         self._views_built = set()
+
+    def _build_cleaner(self, view):
+        from gui.cleaner_view import build_cleaner_view
+        build_cleaner_view(view)
 
     def select_view(self, name):
         self._current_view = name
@@ -373,13 +417,15 @@ class AppWindow(ctk.CTk):
         grid.pack(fill="both", expand=True)
         grid.grid_columnconfigure((0,1,2,3), weight=1, uniform="dash")
         grid.grid_rowconfigure((0,1), weight=0)
-        grid.grid_rowconfigure(2, weight=1)
+        grid.grid_rowconfigure(2, weight=1)  # Spring Row — absorve espaço vazio
 
         def _make_graph_card(r, c, title):
             px = (0,4) if c==0 else ((2,2) if c in [1,2] else (4,0))
             py = (0,4) if r==0 else (4,0)
             card = self._card(grid)
-            card.grid(row=r, column=c, padx=px, pady=py, sticky="nsew")
+            card.configure(height=200)
+            card.grid_propagate(False)
+            card.grid(row=r, column=c, padx=px, pady=py, sticky="new")
             ctk.CTkLabel(card, text=title, font=("Helvetica", 13, "bold"), text_color="#000000").pack(anchor="w", padx=10, pady=(6,0))
             lbl = ctk.CTkLabel(card, text="Carregando...", font=("Consolas", 10), text_color="#000000")
             lbl.pack(anchor="w", padx=10)
@@ -391,7 +437,9 @@ class AppWindow(ctk.CTk):
             px = (0,4) if c==0 else ((2,2) if c in [1,2] else (4,0))
             py = (0,4) if r==0 else (4,0)
             card = self._card(grid)
-            card.grid(row=r, column=c, padx=px, pady=py, sticky="nsew")
+            card.configure(height=200)
+            card.grid_propagate(False)
+            card.grid(row=r, column=c, padx=px, pady=py, sticky="new")
             ctk.CTkLabel(card, text=title, font=("Helvetica", 13, "bold"), text_color="#000000").pack(anchor="w", padx=10, pady=(6,0))
             txt = ctk.CTkLabel(card, text="Carregando...", font=("Consolas", 11), text_color="#000000", justify="left", height=130)
             txt.pack(anchor="nw", padx=10, pady=(6, 10))
@@ -1610,7 +1658,8 @@ class AppWindow(ctk.CTk):
                 
             return container
 
-        ctk.CTkLabel(col_right_m, text="TERMINAL DE OPERAÇÕES", font=("Helvetica", 14, "bold"), text_color="#000000").pack(anchor="w", pady=(0, 6))
+        from gear.build_config import EDICAO_ATUAL
+        ctk.CTkLabel(col_right_m, text=f"TERMINAL DE OPERAÇÕES [{EDICAO_ATUAL}]", font=("Helvetica", 14, "bold"), text_color="#000000").pack(anchor="w", pady=(0, 6))
         
         self.term_text = ctk.CTkTextbox(
             col_right_m, fg_color="#000000", text_color="#FFFFFF", 
@@ -1770,6 +1819,7 @@ class AppWindow(ctk.CTk):
     # ═══════════════════════════════════════════════════════
     def _build_info(self, view):
         from gear.updater import CURRENT_VERSION, check_for_updates
+        from gear.build_config import EDICAO_ATUAL
 
         header = ctk.CTkFrame(view, fg_color="transparent")
         header.pack(fill="x", pady=(0, 10))
@@ -1795,7 +1845,7 @@ class AppWindow(ctk.CTk):
         ctk.CTkLabel(name_row, text="SysForge",
                      font=("Helvetica", 24, "bold"),
                      text_color="#D50000").pack(side="left", padx=(6, 0))
-        ctk.CTkLabel(name_row, text=f"v{CURRENT_VERSION}",
+        ctk.CTkLabel(name_row, text=f"v{CURRENT_VERSION} [{EDICAO_ATUAL}]",
                      font=("Consolas", 11), text_color="#000000"
                      ).pack(side="left", padx=(8, 0), pady=(6, 0))
 

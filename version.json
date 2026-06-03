@@ -1,5 +1,5 @@
 {
-    "version": "4.10.2.3",
+    "version": "5.0.3.0",
     "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
-    "changelog": "- Versão 4.10.2.3: Correção de layout da barra lateral em monitores menores (cortando botões)."
+    "changelog": "- Versão 5.0.3.0: Motor de Expurgo com UX consentida, Mapeamento Dinâmico e Ponte Portable-Host."
 }

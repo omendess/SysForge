@@ -1,6 +1,6 @@
 # SYSFORGE - MATRIZ DE RASTREAMENTO (TIMELINE)
 **Status Atual:** ATIVO
-**Versão Atual:** 4.10.2.3 (Correção de Layout Sidebar)
+**Versão Atual:** 5.0.3.0 (Ciclo de Expurgo Completo + Ponte Portable-Host)
 
 ## DIRETRIZES GLOBAIS DE PRODUÇÃO (REGRAS ABSOLUTAS)
 As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas não podem ser ignoradas ou alteradas pela IA.
@@ -16,6 +16,37 @@ As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas nã
 2. ATUALIZAR POR ÚLTIMO: Ao finalizar uma implementação solicitada, a IA DEVE registrar a mudança aqui e calcular a nova versão com base na Matriz de 4 Eixos.
 
 ## HISTÓRICO DE INTERVENÇÕES
+### [Versão 5.0.3.0] - Data: 2026-06-03
+- [Sistema/Interface] Fim do expediente. Implementada ponte de download Host via Portable (`webbrowser.open` para GitHub Releases). Otimizações geométricas aplicadas na UI (Geometria Fixa, Spring Row, Sidebar Clusters). Higiene de `.gitignore` e remoção de artefatos stale.
+
+### [Versão 5.0.2.4] - Data: 2026-06-03
+- [Interface] Correção Geométrica (UI/UX): Substituição da expansão fluida por Geometria Fixa Estrita (`height=200`, `grid_propagate(False)`) nas abas Dashboard e Info. Implementação de Absorvedor de Espaço (Spring Row `weight=1`) para preservar o minimalismo e ancorar os cartões ao topo.
+
+### [Versão 5.0.2.3] - Data: 2026-06-03
+- [Interface] Refatoração Geométrica Master: Implementação de responsividade (`weight=1`, `sticky='nsew'`) nas views Dashboard e Info para eliminação de espaços vazios. Correção de ancoragem do badge na Sidebar (`sticky='sew'`) e redução de padding entre clusters.
+
+### [Versão 5.0.2.2] - Data: 2026-06-03
+- [Interface] Refatoração de Elite na Sidebar: Redução da geometria de botões (height=32), calibração tipográfica (Consolas 11 bold) e aplicação de agrupamento semântico (Clusters: Monitoramento, Engenharia, Pacotes, Base) com padding assimétrico para melhoria cognitiva (UI/UX).
+
+### [Versão 5.0.2.1] - Data: 2026-06-03
+- [Lógica/UX] Implementação do Consentimento Informado: O motor de expurgo agora detecta navegadores ativos via `psutil` e exibe um prompt de confirmação antes de abater os processos silenciosamente, protegendo o workflow do usuário.
+- [Lógica/Matemática] Implementação de Auditoria de Lixo (Verbose Log) para rastreabilidade de arquivos e expansão do Dicionário Mestre com alvos profundos do Windows (Update, WER, Delivery Optimization).
+- [Interface] Refatoração de UI/UX na Limpeza Personalizada: Implementação de Menus Accordion (Expansíveis), remoção do painel lateral e reposicionamento de botões na base.
+
+### [Versão 5.0.2.0] - Data: 2026-06-03
+- [Lógica/Interface] Implementação do Mapeamento Dinâmico de Ambiente no Motor de Expurgo. O sistema agora escaneia diretórios via `os.path.exists` para gerar opções de limpeza exclusivas aos softwares instalados (Opera GX, Brave, Firefox, etc).
+
+### [Versão 5.0.1.0] - Data: 2026-06-03
+- [Lógica/Interface] Refatoração do Motor de Expurgo para Dicionário Multicamadas. Implementação de seleção granular de sub-itens (Chrome/Sistema) com execução híbrida (Arquivos/Comandos).
+- [Lógica/Interface] Início do Motor de Expurgo Profundo (Host-Exclusive). Lógica de caminhos e Interface granular criadas preservando o ecossistema existente.
+
+### [Versão 5.0.0.0] - Data: 2026-06-03
+- [Arquitetura] Refatoração para Arquitetura Monorepo com Feature Flags (Preparação para Dual-Build Portable/Host).
+- [Build] Criação dos scripts de build em lote separados (`build_portable.bat` e `build_host.bat`) e centralização da variável `EDICAO_ATUAL` em `gear/build_config.py`.
+- [Build] Otimização dos motores de compilação (.bat) com rotinas de auto-limpeza (PyInstaller cleanup).
+- [Interface] Injeção dinâmica da flag `IS_PORTABLE` na barra lateral, ocultando recursos pesados (como App Manager e Softwares) na compilação leve.
+- [Deploy] Implementação de Assinatura Visual Dinâmica, injeção de Manifesto UAC (--uac-admin) e criação do script de instalação corporativa (Inno Setup).
+
 ### [Versão 4.10.2.3] - Data: 2026-06-01
 - [Interface] Correção de dimensionamento dinâmico na Sidebar: transferência de peso do grid da aba INFO para um row invisível (12), evitando o corte dos botões inferiores e badge de versão em telas/resoluções menores ou com escala.
 - [Código] Análise e validação dos scripts mais recentes `triage_engine.py`, `blackbox.py`, `repair_protocols.py`. Nenhuma anomalia crítica foi encontrada no código pendente.

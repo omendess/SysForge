@@ -13,7 +13,7 @@ import subprocess
 import urllib.request
 import json
 
-CURRENT_VERSION = "4.10.2.3"
+CURRENT_VERSION = "5.0.3.0"
 
 UPDATE_URL = "https://raw.githubusercontent.com/omendess/SysForge/main/version.json"
 

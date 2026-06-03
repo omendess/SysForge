@@ -61,7 +61,8 @@ class SplashScreen(ctk.CTkToplevel):
         
         # Version Badge
         from gear.updater import CURRENT_VERSION
-        self.lbl_version = ctk.CTkLabel(self.border_frame, text=f"v{CURRENT_VERSION}", font=("Consolas", 9, "bold"), text_color="#808080", bg_color="transparent")
+        from gear.build_config import EDICAO_ATUAL
+        self.lbl_version = ctk.CTkLabel(self.border_frame, text=f"v{CURRENT_VERSION} [{EDICAO_ATUAL}]", font=("Consolas", 9, "bold"), text_color="#808080", bg_color="transparent")
         self.lbl_version.place(relx=0.98, rely=0.98, anchor="se")
         self.lbl_version.lift()
         
