@@ -42,8 +42,15 @@ def check_for_updates(root_window, manual=False):
             with urllib.request.urlopen(req, timeout=8) as response:
                 data = json.loads(response.read().decode())
                 
+                from gear.build_config import IS_PORTABLE
+                
                 latest_version = data.get("version", CURRENT_VERSION)
-                download_url = data.get("download_url", "")
+                
+                if IS_PORTABLE:
+                    download_url = data.get("download_url_portable", data.get("download_url", ""))
+                else:
+                    download_url = data.get("download_url_host", "https://github.com/omendess/SysForge/releases/latest")
+                    
                 changelog = data.get("changelog", "Melhorias de estabilidade e segurança.")
                 
                 if _compare_versions(CURRENT_VERSION, latest_version):
@@ -95,11 +102,18 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
     btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
     btn_frame.pack(fill="x", padx=40)
     
+    from gear.build_config import IS_PORTABLE
+
     def apply_update():
         dialog.destroy()
-        _start_update_process(download_url, root_window)
-        
-    ctk.CTkButton(btn_frame, text="Atualizar Agora", fg_color="#16A34A", hover_color="#15803D", command=apply_update).pack(side="left", expand=True, padx=5)
+        if IS_PORTABLE:
+            _start_update_process(download_url, root_window)
+        else:
+            import webbrowser
+            webbrowser.open(download_url)
+            
+    btn_text = "Atualizar Agora" if IS_PORTABLE else "Baixar Novo Instalador"
+    ctk.CTkButton(btn_frame, text=btn_text, fg_color="#16A34A", hover_color="#15803D", command=apply_update).pack(side="left", expand=True, padx=5)
     ctk.CTkButton(btn_frame, text="Lembrar Depois", fg_color="#334155", hover_color="#1E293B", command=dialog.destroy).pack(side="right", expand=True, padx=5)
 
 def _start_update_process(download_url, root_window):

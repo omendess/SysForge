@@ -17,6 +17,7 @@ As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas nã
 
 ## HISTÓRICO DE INTERVENÇÕES
 ### [Versão 5.0.3.0] - Data: 2026-06-03
+- [Arquitetura/Segurança] Patch de Segurança no Updater: Injeção de roteamento 'Edition-Aware'. O motor agora distingue assets de download no GitHub, garantindo que a versão Portable receba apenas binários portáteis e o Host redirecione o usuário para o instalador oficial.
 - [Sistema/Interface] Fim do expediente. Implementada ponte de download Host via Portable (`webbrowser.open` para GitHub Releases). Otimizações geométricas aplicadas na UI (Geometria Fixa, Spring Row, Sidebar Clusters). Higiene de `.gitignore` e remoção de artefatos stale.
 
 ### [Versão 5.0.2.4] - Data: 2026-06-03

@@ -1,5 +1,7 @@
 {
     "version": "5.0.3.0",
     "download_url": "https://github.com/omendess/SysForge/raw/main/dist/SysForge.exe",
+    "download_url_portable": "https://github.com/omendess/SysForge/raw/main/dist/SysForge_Portable.exe",
+    "download_url_host": "https://github.com/omendess/SysForge/releases/latest",
     "changelog": "- Versão 5.0.3.0: Motor de Expurgo com UX consentida, Mapeamento Dinâmico e Ponte Portable-Host."
 }
