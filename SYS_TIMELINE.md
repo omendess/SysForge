@@ -1,6 +1,6 @@
 # SYSFORGE - MATRIZ DE RASTREAMENTO (TIMELINE)
 **Status Atual:** ATIVO
-**Versão Atual:** 1.0.1 (Teste de Auto-Updater)
+**Versão Atual:** 1.0.3 (Rebranding Singularity Dot)
 
 ## DIRETRIZES GLOBAIS DE PRODUÇÃO (REGRAS ABSOLUTAS)
 As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas não podem ser ignoradas ou alteradas pela IA.
@@ -16,6 +16,10 @@ As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas nã
 2. ATUALIZAR POR ÚLTIMO: Ao finalizar uma implementação solicitada, a IA DEVE registrar a mudança aqui e calcular a nova versão com base na Matriz de 4 Eixos.
 
 ## HISTÓRICO DE INTERVENÇÕES
+### [Versão 1.0.3] - Data: 2026-06-16
+- [Identidade] Rebranding completo do projeto para o ecossistema Singularity Dot, removendo referências ao M Lab.
+- [Arquitetura/Sistema] Criação do DOCUMENTATION.md, e atualização do README.
+- [Deploy] Versões Portable e Host compiladas e atualizadas (v1.0.3). Push autorizado no repositório remoto.
 ### [Versão 1.0.1] - Data: 2026-06-03
 - [Deploy] Implementação de Dynamic Naming no pipeline de build. O builder.py e o Inno Setup agora carimbam o artefato final com a versão correspondente (ex: v1.0.1) de forma automatizada via extração da constante global. Limpeza de batch scripts adaptada com wildcards (`v*.exe`).
 - [Arquitetura/Sistema] Bump de versão para v1.0.1. Preparação dos artefatos para o teste de validação de campo do Auto-Updater e roteamento da API.
