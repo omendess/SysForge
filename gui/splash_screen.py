@@ -41,9 +41,9 @@ class SplashScreen(ctk.CTkToplevel):
                 ctk_img = ctk.CTkImage(light_image=img_resized, dark_image=img_resized, size=(w, h))
                 self.lbl_bg.configure(image=ctk_img)
             else:
-                self.lbl_bg.configure(text="SYSFORGE // M LABS", font=("Arial", 32, "bold"), text_color="#000000")
+                self.lbl_bg.configure(text="SYSFORGE // SINGULARITY DOT", font=("Arial", 28, "bold"), text_color="#000000")
         except Exception:
-            self.lbl_bg.configure(text="SYSFORGE // M LABS", font=("Arial", 32, "bold"), text_color="#000000")
+            self.lbl_bg.configure(text="SYSFORGE // SINGULARITY DOT", font=("Arial", 28, "bold"), text_color="#000000")
 
         
         # Barra de Progresso: No centro-inferior

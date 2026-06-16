@@ -13,7 +13,7 @@ import subprocess
 import urllib.request
 import json
 
-CURRENT_VERSION = "1.0.1"
+CURRENT_VERSION = "1.0.3"
 
 API_URL = "https://api.github.com/repos/omendess/SysForge/releases/latest"
 
@@ -37,42 +37,57 @@ def check_for_updates(root_window, manual=False):
     def _check():
         try:
             import time
+            print("[Updater] Conectando na API do GitHub...")
             cache_buster_url = f"{API_URL}?t={int(time.time())}"
-            headers = {"User-Agent": "SysForge-Updater", "Accept": "application/vnd.github.v3+json"}
+            headers = {"User-Agent": "SysForge-App", "Accept": "application/vnd.github.v3+json"}
             req = urllib.request.Request(cache_buster_url, headers=headers)
             try:
                 response = urllib.request.urlopen(req, timeout=8)
                 if response.getcode() != 200:
-                    print(f"Erro API: {response.getcode()}")
+                    print(f"[Updater] Erro API: {response.getcode()}")
+                print("[Updater] Resposta recebida. Fazendo parse JSON...")
                 data = json.loads(response.read().decode())
             except urllib.error.HTTPError as e:
-                print(f"Erro API: {e.code} - {e.read().decode('utf-8', errors='ignore')}")
-                raise e
-                from gear.build_config import IS_PORTABLE
-                
-                tag_name = data.get("tag_name", "")
-                latest_version = tag_name.lstrip("v") if tag_name else CURRENT_VERSION
-                
-                download_url = ""
-                if IS_PORTABLE:
-                    assets = data.get("assets", [])
-                    for asset in assets:
-                        if "SysForge_Portable" in asset.get("name", ""):
-                            download_url = asset.get("browser_download_url", "")
-                            break
+                print(f"[Updater] Erro API: {e.code} - {e.read().decode('utf-8', errors='ignore')}")
+                if e.code == 404:
+                    print("[Updater] Nenhuma Release encontrada. Você precisa criar uma 'Release' no GitHub para ativar o OTA.")
                 else:
-                    download_url = data.get("html_url", "https://github.com/omendess/SysForge/releases/latest")
-                    
-                changelog = data.get("body", "Melhorias de estabilidade e segurança.")
+                    from tkinter import messagebox
+                    root_window.after(0, lambda: messagebox.showerror("Erro de Comunicação", f"Falha ao consultar a API do GitHub:\nHTTP Error {e.code}"))
+                return
                 
-                if _compare_versions(CURRENT_VERSION, latest_version):
-                    root_window.after(0, lambda: _show_update_dialog(root_window, latest_version, download_url, changelog))
-                elif manual:
-                    root_window.after(0, lambda: _show_no_update_dialog(root_window))
+            from gear.build_config import IS_PORTABLE
+            
+            tag_name = data.get("tag_name", "")
+            latest_version = tag_name.lstrip("v") if tag_name else CURRENT_VERSION
+            print(f"[Updater] Versão da release latest: {latest_version} | Atual: {CURRENT_VERSION}")
+            
+            download_url = ""
+            if IS_PORTABLE:
+                assets = data.get("assets", [])
+                print(f"[Updater] Modo Portable. Avaliando {len(assets)} assets...")
+                for asset in assets:
+                    asset_name = asset.get("name", "")
+                    print(f"[Updater] Avaliando asset: {asset_name}")
+                    if "SysForge_Portable" in asset_name:
+                        download_url = asset.get("browser_download_url", "")
+                        print(f"[Updater] Match encontrado: {download_url}")
+                        break
+            else:
+                download_url = data.get("html_url", "https://github.com/omendess/SysForge/releases/latest")
+                print(f"[Updater] Modo Host. Rota de download: {download_url}")
+                
+            changelog = data.get("body", "Melhorias de estabilidade e segurança.")
+            
+            if _compare_versions(CURRENT_VERSION, latest_version):
+                root_window.after(0, lambda: _show_update_dialog(root_window, latest_version, download_url, changelog))
+            elif manual:
+                root_window.after(0, lambda: _show_no_update_dialog(root_window))
+                
         except Exception as e:
             print("Erro ao buscar atualizações:", e)
-            if manual:
-                root_window.after(0, lambda: _show_error_dialog(root_window))
+            from tkinter import messagebox
+            root_window.after(0, lambda err=e: messagebox.showerror("Erro de Comunicação", f"Falha ao consultar a API do GitHub:\n{str(err)}"))
 
     threading.Thread(target=_check, daemon=True).start()
 
@@ -118,9 +133,12 @@ def _show_update_dialog(root_window, new_version, download_url, changelog):
 
     def apply_update():
         dialog.destroy()
+        from tkinter import messagebox
         if IS_PORTABLE:
+            messagebox.showinfo("Atualização Iniciada", "Baixando o novo executável Portable em background. O SysForge será reiniciado automaticamente ao concluir.")
             _start_update_process(download_url, root_window)
         else:
+            messagebox.showinfo("Atualização Direcionada", "Como você está usando a versão Host, o navegador será aberto para baixar o novo Instalador de bancada.")
             import webbrowser
             webbrowser.open(download_url)
             
@@ -155,9 +173,11 @@ def _start_update_process(download_url, root_window):
             
             # 2. Baixar o novo executável temporariamente
             import urllib.request
-            req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
+            print(f"[Updater] Baixando binário em {download_url}...")
+            req = urllib.request.Request(download_url, headers={'User-Agent': 'SysForge-App'})
             with urllib.request.urlopen(req, timeout=30) as response, open(exe_new, 'wb') as out_file:
                 out_file.write(response.read())
+            print(f"[Updater] Download concluído. Renomeando para {exe_path}...")
             
             # Validar se baixou algo razoável (> 1MB)
             if os.path.getsize(exe_new) < 1048576:

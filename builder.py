@@ -26,8 +26,18 @@ def main():
         
     print(f"[*] Flag EDICAO_ATUAL definida para: {mode}")
     
-    # 2. Executa o PyInstaller com configuracoes limpas
-    exe_name = f"SysForge_{mode.capitalize()}"
+    # 2. Extrai a versão atual para o nome dinâmico
+    version = "1.0.1"
+    updater_path = os.path.join("gear", "updater.py")
+    if os.path.exists(updater_path):
+        with open(updater_path, "r", encoding="utf-8") as uf:
+            for line in uf:
+                if line.startswith("CURRENT_VERSION"):
+                    version = line.split("=")[1].strip().strip('"').strip("'")
+                    break
+
+    # 3. Executa o PyInstaller com configuracoes limpas
+    exe_name = f"SysForge_{mode.capitalize()}_v{version}"
     
     # Montando o comando do pyinstaller com os parametros solicitados e dependencias
     cmd = (
@@ -35,7 +45,7 @@ def main():
         f'--icon "icon.ico" '
         f'--add-data "gui;gui" --add-data "gear;gear" --add-data "worker;worker" '
         f'--add-data "icon.ico;." '
-        f'--add-data "icon.png;." --add-data "logo_mlabs.png;." '
+        f'--add-data "icon.png;." '
     )
     
     # Se for PORTABLE, podemos excluir bibliotecas pesadas aqui (ex: --exclude-module=opencv)

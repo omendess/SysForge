@@ -38,7 +38,7 @@ def run_blackbox_audit():
             if not os.path.exists(log_dir):
                 os.makedirs(log_dir)
                 
-            file_path = os.path.join(log_dir, f"M-LABS-{hostname}-snapshot.json")
+            file_path = os.path.join(log_dir, f"SD-{hostname}-snapshot.json")
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4)
                 

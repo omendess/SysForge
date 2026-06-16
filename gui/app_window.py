@@ -97,7 +97,7 @@ class AppWindow(ctk.CTk):
         self.hud_frame.grid(row=1, column=1, sticky="nsew")
 
         # Tracking ID
-        self.lbl_track = ctk.CTkLabel(self.hud_frame, text="SYS.TRACKING_ID: [M-LABS-OP-01]", font=("Consolas", 9), text_color="#808080")
+        self.lbl_track = ctk.CTkLabel(self.hud_frame, text="SYS.TRACKING_ID: [SD-OP-01]", font=("Consolas", 9), text_color="#808080")
         self.lbl_track.place(relx=0.98, rely=0.5, anchor="e")
 
         # Telemetry HUD
@@ -158,8 +158,9 @@ class AppWindow(ctk.CTk):
 
     # ─── Sidebar ────────────────────────────────────────────
     def _build_sidebar(self):
-        sb = ctk.CTkFrame(self, width=230, corner_radius=0, fg_color=BG_SIDEBAR, border_width=0)
+        sb = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=BG_SIDEBAR, border_width=0)
         sb.grid(row=0, column=0, rowspan=2, sticky="nsew")
+        sb.grid_propagate(False)
         sb.grid_columnconfigure(0, weight=1)
         sb.grid_rowconfigure(14, weight=1)
         self.sidebar = sb
@@ -167,23 +168,8 @@ class AppWindow(ctk.CTk):
         sb_sep = ctk.CTkFrame(sb, width=1, fg_color="#000000", corner_radius=0)
         sb_sep.place(relx=1, rely=0, relheight=1, anchor="ne")
 
-        # Logo
-        import PIL.Image
-        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        logo_path = os.path.join(base_dir, "logo_mlabs.png")
-            
-        try:
-            
-            # Carregar a imagem para descobrir a proporção e não distorcer
-            img_pil = PIL.Image.open(logo_path)
-            orig_w, orig_h = img_pil.size
-            target_w = 160
-            target_h = int((target_w / orig_w) * orig_h)
-            
-            logo_img = ctk.CTkImage(light_image=img_pil, dark_image=img_pil, size=(target_w, target_h))
-            ctk.CTkLabel(sb, image=logo_img, text="").grid(row=0, column=0, padx=24, pady=(28, 4), sticky="w")
-        except Exception as e:
-            ctk.CTkLabel(sb, text="M LABS", font=("Helvetica", 26, "bold"), text_color="#D50000").grid(row=0, column=0, padx=24, pady=(28, 4), sticky="w")
+        # Logo Singularity Dot (Texto)
+        ctk.CTkLabel(sb, text="SINGULARITY DOT", font=("Helvetica", 18, "bold"), text_color="#D50000").grid(row=0, column=0, padx=20, pady=(28, 4), sticky="w")
         ctk.CTkLabel(sb, text="MOTOR DE IMPLANTAÇÃO", font=("Consolas", 11), text_color="#000000").grid(row=1, column=0, padx=26, pady=(0, 12), sticky="w")
 
         # Separator
@@ -226,8 +212,8 @@ class AppWindow(ctk.CTk):
         ])
 
         for icon, text, key, row, pad_y in items:
-            container = ctk.CTkFrame(sb, fg_color="#FFFFFF", border_width=1, border_color="#000000", corner_radius=0, height=32)
-            container.grid(row=row, column=0, padx=14, pady=pad_y, sticky="ew")
+            container = ctk.CTkFrame(sb, fg_color="#FFFFFF", border_width=1, border_color="#000000", corner_radius=2, height=36)
+            container.grid(row=row, column=0, padx=15, pady=pad_y, sticky="ew")
             container.pack_propagate(False)
 
             indicator = ctk.CTkFrame(container, width=4, fg_color="transparent", corner_radius=0)
@@ -239,7 +225,7 @@ class AppWindow(ctk.CTk):
             txt_lbl = ctk.CTkLabel(
                 container, text=text, anchor="w",
                 fg_color="transparent", text_color="#000000",
-                font=("Consolas", 11, "bold")
+                font=("Consolas", 12, "bold")
             )
             txt_lbl.pack(side="left", fill="both", expand=True, padx=(0, 1), pady=1)
 
@@ -413,11 +399,11 @@ class AppWindow(ctk.CTk):
     # ═══════════════════════════════════════════════════════
     def _build_dashboard(self, view):
         header = ctk.CTkFrame(view, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 6))
+        header.pack(fill="x", padx=20, pady=(20, 6))
         self._section_title(header, "MATRIZ DE VIGILÂNCIA", "Sensores e Telemetria em Tempo Real")
 
         grid = ctk.CTkFrame(view, fg_color="transparent")
-        grid.pack(fill="both", expand=True)
+        grid.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         grid.grid_columnconfigure((0,1,2,3), weight=1, uniform="dash")
         grid.grid_rowconfigure((0,1), weight=0)
         grid.grid_rowconfigure(2, weight=1)  # Spring Row — absorve espaço vazio
@@ -1825,11 +1811,11 @@ class AppWindow(ctk.CTk):
         from gear.build_config import EDICAO_ATUAL
 
         header = ctk.CTkFrame(view, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 10))
+        header.pack(fill="x", padx=20, pady=(20, 10))
         self._section_title(header, "Sobre o SysForge", "Informações do sistema e diagnóstico")
 
         scroll = ctk.CTkFrame(view, fg_color="transparent")
-        scroll.pack(fill="both", expand=True)
+        scroll.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
         # ── Card: Sobre o App ──────────────────────────────────────────────
         about = self._card(scroll)
@@ -1866,7 +1852,7 @@ class AppWindow(ctk.CTk):
         right_col.pack(side="left", fill="y")
 
         for icon, label, value in [
-            ("👤", "Autor",      "M labs"),
+            ("👤", "Autor",      "Singularity Dot"),
             ("📧", "Contato",    "o_mendes@outlook.com.br"),
             ("📅", "Lançamento", "Maio 2026"),
             ("🖥️", "Plataforma", "Windows 10 / 11"),

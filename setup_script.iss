@@ -1,16 +1,18 @@
+#define MyAppVersion "1.0.3"
+
 [Setup]
 AppName=SysForge
 SetupIconFile=icon.ico
-AppVersion=1.0.1
-AppPublisher=Orlando Mendes
-AppCopyright=Copyright (C) 2026 Orlando Mendes
-VersionInfoCompany=Orlando Mendes
+AppVersion={#MyAppVersion}
+AppPublisher=Singularity Dot
+AppCopyright=Copyright (C) 2026 Singularity Dot
+VersionInfoCompany=Singularity Dot
 VersionInfoDescription=SysForge Host - Motor de Implantação e Manutenção
-VersionInfoVersion=1.0.1.0
+VersionInfoVersion={#MyAppVersion}.0
 DefaultDirName={autopf}\SysForge
 DefaultGroupName=SysForge
 OutputDir=Output
-OutputBaseFilename=SysForge_Setup_v1
+OutputBaseFilename=SysForge_Setup_v{#MyAppVersion}
 WizardStyle=modern
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -23,12 +25,12 @@ PrivilegesRequired=admin
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\SysForge_Host.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\SysForge_Host_v{#MyAppVersion}.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Pode incluir outros arquivos do projeto se necessário
 
 [Icons]
-Name: "{group}\SysForge"; Filename: "{app}\SysForge_Host.exe"
-Name: "{commondesktop}\SysForge"; Filename: "{app}\SysForge_Host.exe"; Tasks: desktopicon
+Name: "{group}\SysForge"; Filename: "{app}\SysForge_Host_v{#MyAppVersion}.exe"
+Name: "{commondesktop}\SysForge"; Filename: "{app}\SysForge_Host_v{#MyAppVersion}.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\SysForge_Host.exe"; Description: "{cm:LaunchProgram,SysForge}"; Flags: nowait postinstall skipifsilent shellexec
+Filename: "{app}\SysForge_Host_v{#MyAppVersion}.exe"; Description: "{cm:LaunchProgram,SysForge}"; Flags: nowait postinstall skipifsilent shellexec

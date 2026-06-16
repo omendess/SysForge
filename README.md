@@ -16,5 +16,8 @@ Para baixar a versão mais recente, acesse a aba [Releases](../../releases/lates
 * `SysForge_Portable.exe` (Para Pendrives)
 * `SysForge_Setup_vX.exe` (Para Instalação Local)
 
+Para documentação técnica avançada, consulte o [DOCUMENTATION.md](DOCUMENTATION.md).
+
 ---
-*Desenvolvido e mantido por Orlando Mendes.*
+**SINGULARITY DOT // VETOR SD-02**
+*Engenharia e Implantação Autônoma.*
