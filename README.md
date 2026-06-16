@@ -1,6 +1,6 @@
 # ⚡ SysForge
 **Motor de Implantação e Manutenção de Sistemas TI**
-*(Versão 1.0.0 - Release Candidate)*
+*(Versão 1.0.3 - Produção)*
 
 O SysForge é uma suíte de engenharia de software nativa para Windows, desenhada para automação de setups, telemetria de hardware e limpeza profunda de SO. Construído sob uma **Arquitetura Dual-Build**, ele opera tanto como uma ferramenta tática de pendrive quanto como um serviço residente na máquina do cliente.
 
