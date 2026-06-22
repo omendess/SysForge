@@ -13,7 +13,7 @@ import subprocess
 import urllib.request
 import json
 
-CURRENT_VERSION = "1.0.3"
+CURRENT_VERSION = "1.0.4"
 
 API_URL = "https://api.github.com/repos/omendess/SysForge/releases/latest"
 
@@ -53,7 +53,7 @@ def check_for_updates(root_window, manual=False):
                     print("[Updater] Nenhuma Release encontrada. Você precisa criar uma 'Release' no GitHub para ativar o OTA.")
                 else:
                     from tkinter import messagebox
-                    root_window.after(0, lambda: messagebox.showerror("Erro de Comunicação", f"Falha ao consultar a API do GitHub:\nHTTP Error {e.code}"))
+                    root_window.ui_queue.put(lambda: messagebox.showerror("Erro de Comunicação", f"Falha ao consultar a API do GitHub:\nHTTP Error {e.code}"))
                 return
                 
             from gear.build_config import IS_PORTABLE
@@ -80,14 +80,14 @@ def check_for_updates(root_window, manual=False):
             changelog = data.get("body", "Melhorias de estabilidade e segurança.")
             
             if _compare_versions(CURRENT_VERSION, latest_version):
-                root_window.after(0, lambda: _show_update_dialog(root_window, latest_version, download_url, changelog))
+                root_window.ui_queue.put(lambda: _show_update_dialog(root_window, latest_version, download_url, changelog))
             elif manual:
-                root_window.after(0, lambda: _show_no_update_dialog(root_window))
+                root_window.ui_queue.put(lambda: _show_no_update_dialog(root_window))
                 
         except Exception as e:
             print("Erro ao buscar atualizações:", e)
             from tkinter import messagebox
-            root_window.after(0, lambda err=e: messagebox.showerror("Erro de Comunicação", f"Falha ao consultar a API do GitHub:\n{str(err)}"))
+            root_window.ui_queue.put(lambda err=e: messagebox.showerror("Erro de Comunicação", f"Falha ao consultar a API do GitHub:\n{str(err)}"))
 
     threading.Thread(target=_check, daemon=True).start()
 

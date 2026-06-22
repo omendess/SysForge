@@ -1,6 +1,6 @@
 # SYSFORGE - MATRIZ DE RASTREAMENTO (TIMELINE)
 **Status Atual:** ATIVO
-**Versão Atual:** 1.0.3 (Rebranding Singularity Dot)
+**Versão Atual:** 1.0.4 (Thread-safe UI & Deep Scrubber)
 
 ## DIRETRIZES GLOBAIS DE PRODUÇÃO (REGRAS ABSOLUTAS)
 As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas não podem ser ignoradas ou alteradas pela IA.
@@ -16,6 +16,11 @@ As regras a seguir são a lei máxima de desenvolvimento deste projeto. Elas nã
 2. ATUALIZAR POR ÚLTIMO: Ao finalizar uma implementação solicitada, a IA DEVE registrar a mudança aqui e calcular a nova versão com base na Matriz de 4 Eixos.
 
 ## HISTÓRICO DE INTERVENÇÕES
+### [Versão 1.0.4] - Data: 2026-06-22
+- [Arquitetura/Sistema] Refatoração total do motor de threads (Thread-Safe UI), substituindo as chamadas de `.after()` por `queue.Queue` nas classes `GenericWorker` para sanar RuntimeErrors no Tkinter.
+- [Deploy] Alteração do fluxo de implantação do Office LTSC forçando flag `Display Level="Full"` no `config.xml` para garantir feedback visual nativo no Windows ao invés de rodar invisível.
+- [Feature/Core] Implementação do Módulo de Esterilização Profunda (`debloater.py`), focado na remoção completa e segura de rastros prévios do Microsoft Office e de Bloatwares UWP Nativos do Windows.
+- [Deploy] Versões Portable e Host compiladas e atualizadas (v1.0.4). Push autorizado no repositório remoto.
 ### [Versão 1.0.3] - Data: 2026-06-16
 - [Identidade] Rebranding completo do projeto para o ecossistema Singularity Dot, removendo referências ao M Lab.
 - [Arquitetura/Sistema] Criação do DOCUMENTATION.md, e atualização do README.

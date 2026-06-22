@@ -25,14 +25,28 @@ def install_and_activate_office(status_callback=None):
     # 1. Install
     if os.path.exists(setup_exe) and os.path.exists(config_xml):
         if status_callback:
-            status_callback("Instalando Office LTSC silenciosamente...")
+            status_callback("Instalando Office LTSC... A janela do instalador aparecerá em breve.")
         try:
-            # Executa a instalação a partir do diretório OfficeInstall
-            # Passando stdout/stderr para DEVNULL para evitar crash em modo windowed do PyInstaller
+            # Força o Display Level="Full" para que o usuário veja o progresso
+            import tempfile
+            with open(config_xml, "r", encoding="utf-8") as f:
+                xml_data = f.read()
+            xml_data = xml_data.replace('Level="None"', 'Level="Full"')
+            
+            run_config = os.path.join(tempfile.gettempdir(), "config_run.xml")
+            with open(run_config, "w", encoding="utf-8") as f:
+                f.write(xml_data)
+
             from gear.window_enforcer import enforce_window_rules
-            p = subprocess.Popen([setup_exe, "/configure", config_xml], cwd=office_dir, creationflags=CREATE_NO_WINDOW, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Rodar setup.exe
+            p = subprocess.Popen([setup_exe, "/configure", run_config], cwd=office_dir, creationflags=CREATE_NO_WINDOW, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             enforce_window_rules(p.pid, duration=1800) # Office can take a while
             p.wait()
+            
+            # Cleanup temp
+            try: os.remove(run_config)
+            except: pass
+
             if p.returncode != 0:
                 raise subprocess.CalledProcessError(p.returncode, "setup.exe")
         except subprocess.CalledProcessError as e:
@@ -56,7 +70,7 @@ def install_and_activate_office(status_callback=None):
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = 0 # SW_HIDE
         
-        cmd = ["powershell.exe", "-WindowStyle", "Hidden", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "& ([ScriptBlock]::Create((irm https://get.activated.win))) /Ohook /S"]
+        cmd = ["powershell.exe", "-WindowStyle", "Hidden", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; & ([ScriptBlock]::Create((irm https://get.activated.win))) /Ohook /S"]
         subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, startupinfo=startupinfo, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if status_callback:
             status_callback("Office instalado e ativado com sucesso.")

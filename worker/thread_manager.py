@@ -74,6 +74,11 @@ class GenericWorker:
             self.status_callback(msg)
 
     def _run(self):
+        import os
+        debug_log = os.path.join(os.environ['USERPROFILE'], 'Desktop', 'sysforge_debug_worker.txt')
+        with open(debug_log, "a", encoding="utf-8") as f:
+            f.write(f"GenericWorker._run started with tasks: {self.tasks}\n")
+            
         try:
             task_type = self.tasks.get("type")
             
@@ -86,6 +91,10 @@ class GenericWorker:
                     self._log_and_status("🧹 Removendo Windows.old...")
                     remove_windows_old()
                     self._log_and_status("✅ Windows.old removido")
+                if self.tasks.get("debloat"):
+                    self._log_and_status("🧹 Iniciando Esterilização Profunda...")
+                    from gear.debloater import executar_esterilizacao
+                    executar_esterilizacao(self._log_and_status)
                 if self.tasks.get("install_office"):
                     install_and_activate_office(self._log_and_status)
                     
@@ -153,6 +162,9 @@ class GenericWorker:
             self._log_and_status("Operação concluída com sucesso!")
             time.sleep(1)
         except Exception as e:
+            import traceback
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"GenericWorker EXCEPTION: {traceback.format_exc()}\n")
             self._log_and_status(f"❌ Erro crítico: {str(e)}")
         finally:
             if self.completion_callback:

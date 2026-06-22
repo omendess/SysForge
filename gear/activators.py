@@ -12,7 +12,7 @@ def activate_windows(status_callback=None):
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = 0 # SW_HIDE
         
-        cmd = ["powershell.exe", "-WindowStyle", "Hidden", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "& ([ScriptBlock]::Create((irm https://get.activated.win))) /HWID /S"]
+        cmd = ["powershell.exe", "-WindowStyle", "Hidden", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; & ([ScriptBlock]::Create((irm https://get.activated.win))) /HWID /S"]
         subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, startupinfo=startupinfo, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if status_callback:
             status_callback("✅ Windows ativado com sucesso (Licença Digital).")

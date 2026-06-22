@@ -66,6 +66,14 @@ class AppWindow(ctk.CTk):
         except Exception:
             pass
 
+        import queue
+        self.ui_queue = queue.Queue()
+        self._process_queue()
+        
+        # Centralizar na tela
+        w, h = 1280, 720
+        self.resizable(False, False)
+        
         from gui.utils import center_window
         center_window(self, w, h)
             
@@ -80,6 +88,19 @@ class AppWindow(ctk.CTk):
         
         # HUD Tático sempre por cima de tudo
         self.after(100, self._draw_tactical_hud)
+
+    def _process_queue(self):
+        import queue
+        try:
+            while True:
+                func = self.ui_queue.get_nowait()
+                try:
+                    func()
+                except Exception as e:
+                    print(f"UI Queue Error: {e}")
+        except queue.Empty:
+            pass
+        self.after(50, self._process_queue)
 
     def _draw_tactical_hud(self):
         # Grid lines (linhas finas cruzando o fundo)
@@ -149,9 +170,9 @@ class AppWindow(ctk.CTk):
                 r_text = f"RAM: [{format_bar(r)}] {int(r):02d}%"
                 d_text = f"DSK: [{format_bar(d)}] {int(d):02d}%"
 
-                self.after(0, lambda txt=c_text, col=c_color: self.lbl_hud_cpu.configure(text=txt, text_color=col))
-                self.after(0, lambda txt=r_text, col=r_color: self.lbl_hud_ram.configure(text=txt, text_color=col))
-                self.after(0, lambda txt=d_text, col=d_color: self.lbl_hud_dsk.configure(text=txt, text_color=col))
+                self.ui_queue.put(lambda txt=c_text, col=c_color: self.lbl_hud_cpu.configure(text=txt, text_color=col))
+                self.ui_queue.put(lambda txt=r_text, col=r_color: self.lbl_hud_ram.configure(text=txt, text_color=col))
+                self.ui_queue.put(lambda txt=d_text, col=d_color: self.lbl_hud_dsk.configure(text=txt, text_color=col))
             except Exception:
                 pass
             time.sleep(1)
@@ -480,11 +501,11 @@ class AppWindow(ctk.CTk):
         cpu_name = cpu_name[:25] + "..." if len(cpu_name) > 25 else cpu_name
         gpu_name = gpu_name[:25] + "..." if len(gpu_name) > 25 else gpu_name
             
-        self.after(0, lambda cn=cpu_name: self.lbl_cpu.configure(text=cn))
-        self.after(0, lambda rt=ram_total: self.lbl_ram.configure(text=f"Total: {rt}"))
-        self.after(0, lambda gn=gpu_name: self.lbl_gpu.configure(text=gn))
-        self.after(0, lambda: self.lbl_disk.configure(text="Transferência (Leitura + Escrita)"))
-        self.after(0, lambda: self.lbl_net.configure(text="Tráfego Agregado"))
+        self.ui_queue.put(lambda cn=cpu_name: self.lbl_cpu.configure(text=cn))
+        self.ui_queue.put(lambda rt=ram_total: self.lbl_ram.configure(text=f"Total: {rt}"))
+        self.ui_queue.put(lambda gn=gpu_name: self.lbl_gpu.configure(text=gn))
+        self.ui_queue.put(lambda: self.lbl_disk.configure(text="Transferência (Leitura + Escrita)"))
+        self.ui_queue.put(lambda: self.lbl_net.configure(text="Tráfego Agregado"))
 
         net_io = psutil.net_io_counters()
         disk_io = psutil.disk_io_counters()
@@ -598,15 +619,15 @@ class AppWindow(ctk.CTk):
                 _up_s = uptime_str
                 _pow_s = pow_str
                 
-                self.after(0, lambda h=_cpu_h: draw_line(self.cvs_cpu, h, 100))
-                self.after(0, lambda h=_ram_h: draw_line(self.cvs_ram, h, 100))
-                self.after(0, lambda h=_disk_h, m=_disk_max: draw_line(self.cvs_disk, h, m, "MB/s"))
-                self.after(0, lambda h=_net_h, m=_net_max: draw_line(self.cvs_net, h, m, "Mbps"))
-                self.after(0, lambda g=_gpu_pct: draw_bar(self.cvs_gpu, g))
+                self.ui_queue.put(lambda h=_cpu_h: draw_line(self.cvs_cpu, h, 100))
+                self.ui_queue.put(lambda h=_ram_h: draw_line(self.cvs_ram, h, 100))
+                self.ui_queue.put(lambda h=_disk_h, m=_disk_max: draw_line(self.cvs_disk, h, m, "MB/s"))
+                self.ui_queue.put(lambda h=_net_h, m=_net_max: draw_line(self.cvs_net, h, m, "Mbps"))
+                self.ui_queue.put(lambda g=_gpu_pct: draw_bar(self.cvs_gpu, g))
                 
-                self.after(0, lambda s=_proc_s: self.txt_procs.configure(text=s))
-                self.after(0, lambda s=_up_s: self.txt_uptime.configure(text=s))
-                self.after(0, lambda s=_pow_s: self.txt_power.configure(text=s))
+                self.ui_queue.put(lambda s=_proc_s: self.txt_procs.configure(text=s))
+                self.ui_queue.put(lambda s=_up_s: self.txt_uptime.configure(text=s))
+                self.ui_queue.put(lambda s=_pow_s: self.txt_power.configure(text=s))
                 
             except Exception:
                 pass
@@ -665,6 +686,9 @@ class AppWindow(ctk.CTk):
         self.chk_office = ctk.CTkCheckBox(oc, text="INSTALAR E ATIVAR", font=("Consolas", 13, "bold"), corner_radius=0, fg_color="#D50000", border_color="#000000", checkmark_color="#FFFFFF", hover_color="#B71C1C")
         self.chk_office.pack(anchor="w", padx=20, pady=(4, 6))
         
+        self.chk_debloat = ctk.CTkCheckBox(oc, text="ESTERILIZAÇÃO (Bloatware & Office)", font=("Consolas", 11), corner_radius=0, fg_color="#D50000", border_color="#000000", checkmark_color="#FFFFFF", hover_color="#B71C1C")
+        self.chk_debloat.pack(anchor="w", padx=20, pady=(0, 6))
+        
         # Utilities ROW
         ug = ctk.CTkFrame(scroll, fg_color="transparent")
         ug.pack(fill="x", pady=(6,0))
@@ -716,21 +740,21 @@ class AppWindow(ctk.CTk):
         hostname = get_current_hostname()
         power = get_current_plan()
         
-        self.after(0, lambda: [
+        self.ui_queue.put(lambda: [
             self.hostname_entry.delete(0,"end"),
             self.hostname_entry.insert(0,hostname),
             self.lbl_power.configure(text=f"Atual: {power}")
         ])
         
         tg = get_temp_size_gb()
-        self.after(0, lambda: self.lbl_temp.configure(text=f"      {tg:.2f} GB de lixo"))
+        self.ui_queue.put(lambda: self.lbl_temp.configure(text=f"      {tg:.2f} GB de lixo"))
         wg = get_windows_old_size_gb()
         if wg > 0:
-            self.after(0, lambda: self.lbl_winold.configure(text=f"      {wg:.2f} GB"))
+            self.ui_queue.put(lambda: self.lbl_winold.configure(text=f"      {wg:.2f} GB"))
         else:
-            self.after(0, lambda: [self.lbl_winold.configure(text="      Não encontrado"), self.chk_winold.configure(state="disabled")])
+            self.ui_queue.put(lambda: [self.lbl_winold.configure(text="      Não encontrado"), self.chk_winold.configure(state="disabled")])
 
-        self.after(0, self._load_office_info)
+        self.ui_queue.put(self._load_office_info)
 
     def _load_office_info(self):
         from gear.office_checker import get_office_info
@@ -773,12 +797,12 @@ class AppWindow(ctk.CTk):
                 self.chk_office.configure(text="INSTALAR E ATIVAR",
                                           fg_color="#D50000", hover_color="#B71C1C")
 
-        self.after(0, _upd)
+        self.ui_queue.put(_upd)
 
     def _run_dash(self):
-        t = {"type":"dashboard","clean_temp":self.chk_temp.get(),"clean_win_old":self.chk_winold.get(),"install_office":self.chk_office.get()}
+        t = {"type":"dashboard","clean_temp":self.chk_temp.get(),"clean_win_old":self.chk_winold.get(),"install_office":self.chk_office.get(), "debloat":self.chk_debloat.get()}
         self.btn_dash.configure(state="disabled"); self.dash_prog.pack(fill="x"); self.dash_prog.start()
-        GenericWorker(t, lambda m: self.after(0, lambda: self.lbl_dash_st.configure(text=m)), lambda: self.after(0, self._done_dash)).start()
+        GenericWorker(t, lambda m: self.ui_queue.put(lambda: self.lbl_dash_st.configure(text=m)), lambda: self.ui_queue.put(self._done_dash)).start()
 
     def _done_dash(self):
         self.dash_prog.stop(); self.dash_prog.pack_forget(); self.btn_dash.configure(state="normal")
@@ -823,7 +847,7 @@ class AppWindow(ctk.CTk):
                 time.sleep(0.1)
                 
         GenericWorker({"type": "custom_generator", "generator_func": _purge_task},
-                      lambda m: self.after(0, lambda: self.lbl_purge_st.configure(text=m)),
+                      lambda m: self.ui_queue.put(lambda: self.lbl_purge_st.configure(text=m)),
                       lambda: self.after(1000, self._load_operations)).start()    # ═══════════════════════════════════════════════════════
     #  SOFTWARES
     # ═══════════════════════════════════════════════════════
@@ -916,13 +940,13 @@ class AppWindow(ctk.CTk):
                     def update_cb(w=wid, n=name):
                         self.software_checkboxes[w].configure(text=f"{n}  ✅", text_color="#16A34A", state="disabled")
                         self.software_vars[w].set(False)
-                    self.after(0, update_cb)
+                    self.ui_queue.put(update_cb)
 
     def _run_soft(self):
         sel = [w for w, v in self.software_vars.items() if v.get()]
         if not sel: self.lbl_soft_st.configure(text="Nenhum software selecionado."); return
         self.btn_soft.configure(state="disabled")
-        GenericWorker({"type":"software","list":sel}, lambda m: self.after(0, lambda: self.lbl_soft_st.configure(text=m)), lambda: self.after(0, lambda: self.btn_soft.configure(state="normal"))).start()
+        GenericWorker({"type":"software","list":sel}, lambda m: self.ui_queue.put(lambda: self.lbl_soft_st.configure(text=m)), lambda: self.ui_queue.put(lambda: self.btn_soft.configure(state="normal"))).start()
 
     # ═══════════════════════════════════════════════════════
     #  TWEAKS (com Switches)
@@ -991,12 +1015,12 @@ class AppWindow(ctk.CTk):
                         self.tweak_switches[k].select()
                     else:
                         self.tweak_switches[k].deselect()
-                self.after(0, update_sw)
+                self.ui_queue.put(update_sw)
 
     def _run_twk(self):
         t = {k: v.get() for k,v in self.tweak_vars.items()}
         self.btn_twk.configure(state="disabled")
-        GenericWorker({"type":"tweaks","tweaks_dict":t}, lambda m: self.after(0, lambda: self.lbl_twk_st.configure(text=m)), lambda: self.after(0, lambda: self.btn_twk.configure(state="normal"))).start()
+        GenericWorker({"type":"tweaks","tweaks_dict":t}, lambda m: self.ui_queue.put(lambda: self.lbl_twk_st.configure(text=m)), lambda: self.ui_queue.put(lambda: self.btn_twk.configure(state="normal"))).start()
 
     # ═══════════════════════════════════════════════════════
     #  APP MANAGER (Otimizado com Treeview Nativo)
@@ -1074,14 +1098,14 @@ class AppWindow(ctk.CTk):
 
     def _load_apps(self):
         from gear.app_manager import get_installed_apps
-        self.after(0, lambda: self.tree.delete(*self.tree.get_children()))
-        self.after(0, lambda: self.lbl_app_st.configure(text="⏳ Carregando programas instalados..."))
+        self.ui_queue.put(lambda: self.tree.delete(*self.tree.get_children()))
+        self.ui_queue.put(lambda: self.lbl_app_st.configure(text="⏳ Carregando programas instalados..."))
         apps = get_installed_apps()
         self.app_data = apps
         self.app_selected = {app["name"]: False for app in apps}
-        self.after(0, lambda: self.lbl_app_st.configure(text=""))
-        self.after(0, lambda: self.app_search_var.set(""))
-        self.after(0, lambda: self._apply_filter(""))
+        self.ui_queue.put(lambda: self.lbl_app_st.configure(text=""))
+        self.ui_queue.put(lambda: self.app_search_var.set(""))
+        self.ui_queue.put(lambda: self._apply_filter(""))
 
     def _on_tree_click(self, event):
         region = self.tree.identify("region", event.x, event.y)
@@ -1144,7 +1168,7 @@ class AppWindow(ctk.CTk):
             
         sel_apps = [app for app in self.app_data if app["name"] in sel_names]
         self.btn_app.configure(state="disabled")
-        GenericWorker({"type":"uninstall","app_list":sel_apps}, lambda m: self.after(0, lambda: self.lbl_app_st.configure(text=m)), lambda: self.after(0, self._done_app)).start()
+        GenericWorker({"type":"uninstall","app_list":sel_apps}, lambda m: self.ui_queue.put(lambda: self.lbl_app_st.configure(text=m)), lambda: self.ui_queue.put(self._done_app)).start()
 
     def _done_app(self):
         self.btn_app.configure(state="normal")
@@ -1153,8 +1177,8 @@ class AppWindow(ctk.CTk):
     def _run_nuke(self):
         from gear.app_manager import nuke_bloatware
         GenericWorker({"type": "custom_generator", "generator_func": nuke_bloatware}, 
-                      lambda m: self.after(0, lambda: self.lbl_app_st.configure(text=m)), 
-                      lambda: self.after(0, self._done_app)).start()
+                      lambda m: self.ui_queue.put(lambda: self.lbl_app_st.configure(text=m)), 
+                      lambda: self.ui_queue.put(self._done_app)).start()
 
     def _force_reload_apps(self):
         self.app_data = []
@@ -1292,12 +1316,12 @@ class AppWindow(ctk.CTk):
 
     def _load_startup(self):
         from gear.startup_manager import get_startup_items, get_scheduled_tasks
-        self.after(0, self._render_startup_loading)
+        self.ui_queue.put(self._render_startup_loading)
         st_items = get_startup_items()
         ts_items = get_scheduled_tasks()
         self.startup_data = st_items
         self.tasks_data = ts_items
-        self.after(0, self._filter_startup)
+        self.ui_queue.put(self._filter_startup)
 
     def _render_startup_loading(self):
         for w in self.scroll_startup.winfo_children(): w.destroy()
@@ -1353,7 +1377,7 @@ class AppWindow(ctk.CTk):
         typ = "task_disable" if is_tasks else "startup_disable"
         GenericWorker({"type": typ, "item": item},
                       lambda m: None,
-                      lambda: self.after(0, lambda: threading.Thread(target=self._load_startup, daemon=True).start())
+                      lambda: self.ui_queue.put(lambda: threading.Thread(target=self._load_startup, daemon=True).start())
                       ).start()
 
     # ═══════════════════════════════════════════════════════
@@ -1433,7 +1457,7 @@ class AppWindow(ctk.CTk):
         def _run_task(task_func):
             self.lbl_repair_st.configure(text="⏳ Executando...")
             GenericWorker({"type": "custom", "func": task_func}, 
-                          lambda m: self.after(0, lambda: self.lbl_repair_st.configure(text=m)), 
+                          lambda m: self.ui_queue.put(lambda: self.lbl_repair_st.configure(text=m)), 
                           None).start()
 
         # --- Coluna Esquerda: REPAROS ---
@@ -1482,7 +1506,7 @@ class AppWindow(ctk.CTk):
             
             def _bg():
                 devs = scan_network_devices()
-                self.after(0, lambda: _upd_scan(devs))
+                self.ui_queue.put(lambda: _upd_scan(devs))
             import threading
             threading.Thread(target=_bg, daemon=True).start()
             
@@ -1544,7 +1568,7 @@ class AppWindow(ctk.CTk):
                         self.btn_purge_image.configure(border_color="#D50000", border_width=2)
                         self.btn_purge_image.winfo_children()[1].configure(text_color="#D50000")
 
-                self.after(0, _update_ui)
+                self.ui_queue.put(_update_ui)
                 
             threading.Thread(target=_triage_thread, daemon=True).start()
 
@@ -1574,36 +1598,36 @@ class AppWindow(ctk.CTk):
             def _autofix_thread():
                 from gear.repair_protocols import protocolo_reparo_rede, protocolo_reparo_update, protocolo_reparo_kernel, protocolo_guarda_chuva
                 
-                self.after(0, lambda: _log("[ > ] INICIANDO PROTOCOLO GUARDA-CHUVA (PONTO DE RESTAURAÇÃO)..."))
+                self.ui_queue.put(lambda: _log("[ > ] INICIANDO PROTOCOLO GUARDA-CHUVA (PONTO DE RESTAURAÇÃO)..."))
                 if not protocolo_guarda_chuva():
-                    self.after(0, lambda: _log("[ ! ] FALHA NO GUARDA-CHUVA. AUTOCURA ABORTADA POR SEGURANÇA.\n"))
+                    self.ui_queue.put(lambda: _log("[ ! ] FALHA NO GUARDA-CHUVA. AUTOCURA ABORTADA POR SEGURANÇA.\n"))
                     return
                 
-                self.after(0, lambda: _log("[ > ] APLICANDO ANTÍDOTOS MATEMÁTICOS...\n"))
+                self.ui_queue.put(lambda: _log("[ > ] APLICANDO ANTÍDOTOS MATEMÁTICOS...\n"))
                 
                 if counts["network"] > 0:
-                    self.after(0, lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE REDE"))
+                    self.ui_queue.put(lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE REDE"))
                     res = protocolo_reparo_rede()
-                    self.after(0, lambda r=res: stop_spinner(r))
+                    self.ui_queue.put(lambda r=res: stop_spinner(r))
                     
                 if counts["update"] > 0:
-                    self.after(0, lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE UPDATE"))
+                    self.ui_queue.put(lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE UPDATE"))
                     res = protocolo_reparo_update()
-                    self.after(0, lambda r=res: stop_spinner(r))
+                    self.ui_queue.put(lambda r=res: stop_spinner(r))
                     
                 if counts["kernel"] > 0:
-                    self.after(0, lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE KERNEL"))
+                    self.ui_queue.put(lambda: start_spinner("[*] APLICANDO ANTÍDOTO DE KERNEL"))
                     res = protocolo_reparo_kernel()
-                    self.after(0, lambda r=res: stop_spinner(r))
+                    self.ui_queue.put(lambda r=res: stop_spinner(r))
                     
-                self.after(0, lambda: _log("[+] TODOS OS PROTOCOLOS DE AUTOCURA FORAM CONCLUÍDOS."))
+                self.ui_queue.put(lambda: _log("[+] TODOS OS PROTOCOLOS DE AUTOCURA FORAM CONCLUÍDOS."))
                 
-                self.after(0, lambda: start_spinner("[*] INICIANDO EXPURGO DE LOGS FANTASMAS"))
+                self.ui_queue.put(lambda: start_spinner("[*] INICIANDO EXPURGO DE LOGS FANTASMAS"))
                 from gear.repair_protocols import expurgar_historico_eventos
                 res_expurgo = expurgar_historico_eventos()
-                self.after(0, lambda r=res_expurgo: stop_spinner(r))
+                self.ui_queue.put(lambda r=res_expurgo: stop_spinner(r))
                 
-                self.after(0, lambda: _log("[>] RECOMENDADO: EXECUTE A TRIAGE NOVAMENTE PARA VALIDAR A INTEGRIDADE.\n"))
+                self.ui_queue.put(lambda: _log("[>] RECOMENDADO: EXECUTE A TRIAGE NOVAMENTE PARA VALIDAR A INTEGRIDADE.\n"))
                 
             threading.Thread(target=_autofix_thread, daemon=True).start()
 
@@ -1708,7 +1732,7 @@ class AppWindow(ctk.CTk):
             self.term_text.configure(state="disabled")
             
             def safe_log(m):
-                self.after(0, lambda msg=m: _log(msg))
+                self.ui_queue.put(lambda msg=m: _log(msg))
                 
             InterventionWorker(func, safe_log, is_revert).start()
 
@@ -1931,18 +1955,18 @@ class AppWindow(ctk.CTk):
                 for w in self._diag_btn_container.winfo_children():
                     if isinstance(w, ctk.CTkButton):
                         w.configure(state=state, text=txt)
-            self.after(0, lambda: _set_state("disabled", "⏳ Aguarde..."))
+            self.ui_queue.put(lambda: _set_state("disabled", "⏳ Aguarde..."))
 
             def _clear(f):
                 for w in f.winfo_children(): w.destroy()
             for f in [self._diag_os, self._diag_disks, self._diag_av, self._diag_fw, self._diag_soft, self._diag_java, self._diag_dev]:
-                self.after(0, lambda frame=f: _clear(frame))
+                self.ui_queue.put(lambda frame=f: _clear(frame))
 
             # Roda o script de info pesada
             from gear.system_info import get_full_system_report
             r = get_full_system_report()
 
-            self.after(0, lambda: self._render_diagnostics(r))
+            self.ui_queue.put(lambda: self._render_diagnostics(r))
         finally:
             self._diag_lock.release()
 
